@@ -100,6 +100,58 @@ async function applyPermissions(strapi, roleId, actions) {
   }
 }
 
+async function grantPublicPermissions(strapi) {
+  const publicActions = [
+    'api::author.author.find',
+    'api::author.author.findOne',
+    'api::book.book.find',
+    'api::book.book.findOne',
+    'api::library.library.find',
+    'api::library.library.findOne',
+    'api::publisher.publisher.find',
+    'api::publisher.publisher.findOne',
+    'api::copy.copy.find',
+    'api::copy.copy.findOne',
+    'api::magazine.magazine.find',
+    'api::magazine.magazine.findOne',
+  ];
+
+  try {
+    const publicRole = await strapi
+      .query('plugin::users-permissions.role')
+      .findOne({ where: { type: 'public' } });
+
+    if (!publicRole) {
+      console.warn('Public role not found — skipping public permission setup.');
+      return;
+    }
+
+    // Reuse applyPermissions to grant access
+    for (const action of publicActions) {
+      const existingPermission = await strapi
+        .query('plugin::users-permissions.permission')
+        .findOne({
+          where: {
+            action: action,
+            role: publicRole.id,
+          },
+        });
+
+      if (!existingPermission) {
+        await strapi.query('plugin::users-permissions.permission').create({
+          data: {
+            action: action,
+            role: publicRole.id,
+          },
+        });
+        console.info(`Permission '${action}' granted to Public role`);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to set up public permissions:', error.message);
+  }
+}
+
 module.exports = {
   /**
    * An asynchronous register function that runs before
@@ -123,6 +175,9 @@ module.exports = {
   async bootstrap({ strapi }) {
     // Grant permissions for custom routes to Authenticated role
     await grantAuthenticatedPermissions(strapi);
+
+    // Grant read permissions to Public role
+    await grantPublicPermissions(strapi);
 
     // Token for Biblionet scraper / admin operations
     createTokenIfNotExist(strapi, {
@@ -175,3 +230,4 @@ module.exports = {
     });
   },
 };
+
