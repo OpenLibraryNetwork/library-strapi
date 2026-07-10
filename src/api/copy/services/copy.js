@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * quantity service
+ * copy service
  */
 
 const { createCoreService } = require('@strapi/strapi').factories;
 
-module.exports = createCoreService('api::quantity.quantity');
+module.exports = createCoreService('api::copy.copy');

@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * quantity router
+ * magazine router
  */
 
 const { createCoreRouter } = require('@strapi/strapi').factories;
 
-module.exports = createCoreRouter('api::quantity.quantity');
+module.exports = createCoreRouter('api::magazine.magazine');

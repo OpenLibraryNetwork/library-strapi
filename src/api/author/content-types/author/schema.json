@@ -14,7 +14,17 @@
   "attributes": {
     "name": {
       "type": "string",
-      "pluginOptions": {}
+      "required": true
+    },
+    "firstname": {
+      "type": "string"
+    },
+    "lastname": {
+      "type": "string"
+    },
+    "biblionetPersonId": {
+      "type": "string",
+      "unique": true
     },
     "books": {
       "type": "relation",

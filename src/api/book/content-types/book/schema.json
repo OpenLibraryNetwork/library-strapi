@@ -5,7 +5,7 @@
     "singularName": "book",
     "pluralName": "books",
     "displayName": "Έντυπα",
-    "description": ""
+    "description": "Ενοποιημένος πίνακας για Βιβλία, Μπροσούρες και Τεύχη Περιοδικών"
   },
   "options": {
     "draftAndPublish": false
@@ -14,13 +14,77 @@
   "attributes": {
     "title": {
       "type": "string",
-      "pluginOptions": {},
       "required": true
     },
-    "yearPublished": {
-      "type": "integer",
-      "pluginOptions": {},
+    "type": {
+      "type": "enumeration",
+      "enum": ["Βιβλίο", "Μπροσούρα", "Περιοδικό"],
       "required": true
+    },
+    "isbn": {
+      "type": "string",
+      "unique": true
+    },
+    "subtitle": {
+      "type": "string"
+    },
+    "yearPublished": {
+      "type": "integer"
+    },
+    "description": {
+      "type": "text"
+    },
+    "summary": {
+      "type": "text"
+    },
+    "pages": {
+      "type": "integer"
+    },
+    "language": {
+      "type": "string"
+    },
+    "originalLanguage": {
+      "type": "string"
+    },
+    "coverImageUrl": {
+      "type": "string"
+    },
+    "binding": {
+      "type": "string"
+    },
+    "edition": {
+      "type": "string"
+    },
+    "dimensions": {
+      "type": "string"
+    },
+    "place": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "series": {
+      "type": "string"
+    },
+    "price": {
+      "type": "decimal"
+    },
+    "weight": {
+      "type": "integer"
+    },
+    "biblionetId": {
+      "type": "string",
+      "unique": true
+    },
+    "biblionetCategoryId": {
+      "type": "string"
+    },
+    "issueNumber": {
+      "type": "integer"
+    },
+    "publicationMonthYear": {
+      "type": "string"
     },
     "authors": {
       "type": "relation",
@@ -28,46 +92,23 @@
       "target": "api::author.author",
       "inversedBy": "books"
     },
-    "file": {
-      "type": "media",
-      "multiple": true,
-      "required": false,
-      "allowedTypes": [
-        "images",
-        "files",
-        "videos",
-        "audios"
-      ],
-      "pluginOptions": {}
-    },
-    "description": {
-      "pluginOptions": {},
-      "type": "text"
-    },
-    "quantities": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::quantity.quantity",
-      "mappedBy": "book"
-    },
     "publisher": {
       "type": "relation",
       "relation": "manyToOne",
       "target": "api::publisher.publisher",
       "inversedBy": "books"
     },
-    "type": {
-      "type": "enumeration",
-      "enum": [
-        "Βιβλίο",
-        "Μπροσούρα",
-        "Περιοδικό"
-      ]
+    "copies": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::copy.copy",
+      "mappedBy": "publication"
     },
-    "isbn": {
-      "type": "biginteger",
-      "unique": true,
-      "required": false
+    "magazine": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::magazine.magazine",
+      "inversedBy": "issues"
     }
   }
 }

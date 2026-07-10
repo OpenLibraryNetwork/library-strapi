@@ -16,6 +16,22 @@
       "type": "string",
       "required": true
     },
+    "biblionetCompanyId": {
+      "type": "string",
+      "unique": true
+    },
+    "address": {
+      "type": "text"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "website": {
+      "type": "string"
+    },
     "books": {
       "type": "relation",
       "relation": "oneToMany",

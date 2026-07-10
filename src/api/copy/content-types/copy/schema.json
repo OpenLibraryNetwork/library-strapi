@@ -1,0 +1,43 @@
+{
+  "kind": "collectionType",
+  "collectionName": "copies",
+  "info": {
+    "singularName": "copy",
+    "pluralName": "copies",
+    "displayName": "Αντίτυπα",
+    "description": "Φυσικά αντίτυπα εντύπων ανά βιβλιοθήκη. Κάθε αντίτυπο = ξεχωριστό record."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "copyNumber": {
+      "type": "integer",
+      "required": true,
+      "default": 1
+    },
+    "isAvailable": {
+      "type": "boolean",
+      "required": true,
+      "default": true
+    },
+    "condition": {
+      "type": "enumeration",
+      "enum": ["NEW", "GOOD", "FAIR", "POOR"],
+      "default": "NEW"
+    },
+    "publication": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::book.book",
+      "inversedBy": "copies"
+    },
+    "library": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::library.library",
+      "inversedBy": "copies"
+    }
+  }
+}

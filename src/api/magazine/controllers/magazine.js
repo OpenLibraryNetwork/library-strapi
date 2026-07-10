@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * quantity controller
+ * magazine controller
  */
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
-module.exports = createCoreController('api::quantity.quantity');
+module.exports = createCoreController('api::magazine.magazine');
