@@ -102,52 +102,68 @@ Local user data and borrow records are stored on each client's encrypted H2 data
 | title (required) |<------| magazine (FK)    |   +-->| name (required)  |
 | issn (unique)    |  1:N  | title (required) |   |   | firstname        |
 | publisher (FK)   |       | type (enum)      |   |   | lastname         |
-+------------------+       |   - Book         |   |   | biblionetPersonId|
-                           |   - Brochure     |   |   +------------------+
-                           |   - Periodical   |   |
-                           | isbn (unique)    |   |   M:N (authors <-> books)
-                           | subtitle         |   |
-                           | yearPublished    |   +---| authors (M:N)    |
-                           | description      |       | publisher (FK)   |----+
-                           | summary          |       | copies (1:N)     |    |
-                           | pages            |       | issueNumber      |    |
-                           | language         |       | biblionetId      |    |
-                           | coverImageUrl    |       | biblionetCatId   |    |
-                           | binding          |       +------------------+    |
-                           | edition          |                               |
-                           | dimensions       |       +------------------+    |
-                           | place            |       |    PUBLISHER     |<---+
-                           | category         |       +------------------+
-                           | series           |       | id               |
-                           | price            |       | name (required)  |
-                           | weight           |       | biblionetCompId  |
-                           +------------------+       | address          |
-                                    |                 | phone            |
-                                    | 1:N             | email            |
-                                    v                 | website          |
-                           +------------------+       +------------------+
-                           |      COPY        |
-                           +------------------+       +------------------+
-                           | id               |       |    LIBRARY       |
++------------------+       |   - Book         |   |   | biography        |
+                           |   - Brochure     |   |   | biblionetPersonId|
+                           |   - Periodical   |   |   +------------------+
+                           | isbn (unique)    |   |
+                           | subtitle         |   |   M:N (authors <-> books)
+                           | yearPublished    |   |
+                           | description      |   +---| authors (M:N)    |
+                           | summary          |       | publisher (FK)   |----+
+                           | pages            |       | copies (1:N)     |    |
+                           | language         |       | subjects (M:N)   |-+  |
+                           | coverImageUrl    |       | issueNumber      | |  |
+                           | binding          |       | biblionetId      | |  |
+                           | edition          |       | biblionetCatId   | |  |
+                           | dimensions       |       +------------------+ |  |
+                           | place            |                            |  |
+                           | category         |       +------------------+ |  |
+                           | series           |       |    SUBJECT       |<+  |
+                           | price            |       +------------------+    |
+                           | weight           |       | id               |    |
+                           +------------------+       | subjectTitle     |    |
+                                    |                 | subjectDDC       |    |
+                                    | 1:N             | biblionetSubjId  |    |
+                                    v                 | books (M:N)      |    |
+                           +------------------+       +------------------+    |
+                           |      COPY        |                               |
+                           +------------------+       +------------------+    |
+                           | id               |       |    PUBLISHER     |<---+
                            | copyNumber       |       +------------------+
-                           | isAvailable      |<------| id               |
-                           | condition (enum) |  N:1  | name (required)  |
-                           |   - NEW          |       | description      |
-                           |   - GOOD         |       +------------------+
-                           |   - FAIR         |              |
-                           |   - POOR         |              | 1:N
-                           | publication (FK) |              v
+                           | isAvailable      |       | id               |
+                           | condition (enum) |       | name (required)  |
+                           |   - NEW          |       | biblionetCompId  |
+                           |   - GOOD         |       | address          |
+                           |   - FAIR         |       | phone            |
+                           |   - POOR         |       | email            |
+                           | publication (FK) |       | website          |
                            | library (FK)     |       +------------------+
+                           +------------------+              |
+                                                             | 1:N
+                           +------------------+              v
+                           |    LIBRARY       |       +------------------+
                            +------------------+       |  STRAPI USER     |
-                                                      +------------------+
-                                                      | id               |
-                                                      | username         |
-                                                      | email            |
-                                                      | password (hash)  |
+                           | id               |       +------------------+
+                           | name (required)  |       | id               |
+                           | description      |       | username         |
+                           | copies (1:N)     |       | email            |
+                           +------------------+       | password (hash)  |
                                                       | role (librarian) |
                                                       | library (FK)     |
                                                       +------------------+
 ```
+
+**Content Types Summary:**
+
+| Content Type | Display Name | Description |
+|-------------|-------------|-------------|
+| Book | Entypa | Unified publications (books, brochures, periodical issues) |
+| Author | Syggrafeis | Authors with optional Biblionet enrichment (biography) |
+| Publisher | Ekdotes | Publishers with contact details |
+| Magazine | Periodika | Periodical titles (issues stored as Books with type=Periodical) |
+| Copy | Antitypa | Physical copies per library branch |
+| Subject | Themata DDC | Dewey Decimal Classification subjects (from Biblionet) |
+| Library | Vivliothikes | Library branches |
 
 **Type Discrimination (Single Table Inheritance):**
 
@@ -157,6 +173,7 @@ Local user data and borrow records are stored on each client's encrypted H2 data
 | biblionetId | Optional | Forced null | Forced null |
 | issueNumber | Forced null | Forced null | Required |
 | magazine (relation) | Forced null | Forced null | Required |
+| subjects (relation) | Optional | Optional | Optional |
 
 ---
 
@@ -176,13 +193,14 @@ Local user data and borrow records are stored on each client's encrypted H2 data
 | GET | /api/authors | List authors |
 | GET | /api/publishers | List publishers |
 | GET | /api/magazines | List magazine titles |
+| GET | /api/subjects | List DDC subjects |
 | GET | /api/libraries | List libraries |
 
 ### Custom Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | /api/books/search-biblionet?isbn=X | Search ISBN in local DB then Biblionet API |
+| GET | /api/books/search-biblionet?isbn=X | Search ISBN in local DB then Biblionet API (enriches authors, publishers, subjects, cover image) |
 | POST | /api/copies/borrow | Atomic borrow (sets isAvailable=false) |
 | POST | /api/copies/return | Atomic return (sets isAvailable=true) |
 
@@ -219,6 +237,8 @@ Local user data and borrow records are stored on each client's encrypted H2 data
 ### Biblionet API Rate Limiting
 - In-memory daily counter (900 calls/day, buffer 100 for admin)
 - Auto-resets at midnight
+- Dynamic increment based on actual API calls per search (varies: 2-5 calls depending on enrichment needs)
+- Calls made: get_title, get_contributors, get_title_subject, get_person (per author), get_company (per publisher)
 
 ---
 
@@ -319,7 +339,7 @@ library-strapi/
 │   │   │   │   ├── book.js            # Core CRUD routes
 │   │   │   │   └── custom-book.js     # search-biblionet route
 │   │   │   └── services/
-│   │   │       ├── biblionet.js       # Biblionet HTTP client
+│   │   │       ├── biblionet.js       # Biblionet HTTP client (get_title, get_contributors, get_title_subject, get_person, get_company, downloadImage)
 │   │   │       └── biblionet-quota.js # Rate limiter
 │   │   ├── copy/             # Copy content type
 │   │   │   ├── content-types/copy/
@@ -331,7 +351,8 @@ library-strapi/
 │   │   │       └── custom-copy.js     # borrow/return routes
 │   │   ├── library/          # Library content type
 │   │   ├── magazine/         # Magazine content type
-│   │   └── publisher/        # Publisher content type
+│   │   ├── publisher/        # Publisher content type
+│   │   └── subject/          # Subject DDC content type
 │   ├── extensions/
 │   │   └── users-permissions/
 │   │       ├── content-types/user/schema.json  # Adds library relation

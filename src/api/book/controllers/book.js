@@ -30,7 +30,7 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
     // 1. Check if book already exists in Strapi
     const existingBooks = await strapi.entityService.findMany('api::book.book', {
       filters: { isbn: normalizedIsbn },
-      populate: ['authors', 'publisher', 'copies'],
+      populate: ['authors', 'publisher', 'copies', 'subjects'],
     });
 
     if (existingBooks && existingBooks.length > 0) {
@@ -50,17 +50,19 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
 
     // 3. Search Biblionet API
     const biblionet = require('../services/biblionet');
+    let apiCallsMade = 0;
 
     let titleData;
     try {
       titleData = await biblionet.searchByIsbn(normalizedIsbn);
+      apiCallsMade++;
     } catch (err) {
       strapi.log.error('Biblionet search failed:', err.message);
       return ctx.internalServerError(`Biblionet API error: ${err.message}`);
     }
 
     if (!titleData || !titleData.TitlesID) {
-      quota.increment(1); // Count the failed call too
+      quota.increment(apiCallsMade); // Count the calls made so far
       return ctx.notFound(`Δεν βρέθηκε βιβλίο με ISBN: ${isbn}`);
     }
 
@@ -69,14 +71,23 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
     try {
       const contributors = await biblionet.getContributors(titleData.TitlesID);
       authorsData = biblionet.filterAuthors(contributors);
+      apiCallsMade++;
     } catch (err) {
       strapi.log.warn('Biblionet contributors fetch failed:', err.message);
       // Continue without authors — not fatal
     }
 
-    quota.increment(2); // get_title + get_contributors
+    // 5. Get DDC subjects from Biblionet
+    let subjectsData = [];
+    try {
+      subjectsData = await biblionet.getSubjects(titleData.TitlesID);
+      apiCallsMade++;
+    } catch (err) {
+      strapi.log.warn('Biblionet subjects fetch failed:', err.message);
+      // Continue without subjects — not fatal
+    }
 
-    // 5. Find or create Publisher
+    // 6. Find or create Publisher (with enrichment)
     let publisherId = null;
     if (titleData.PublisherID) {
       const existingPublishers = await strapi.entityService.findMany(
@@ -87,12 +98,25 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
       if (existingPublishers && existingPublishers.length > 0) {
         publisherId = existingPublishers[0].id;
       } else {
+        // Enrich publisher details
+        let companyData = null;
+        try {
+          companyData = await biblionet.getCompany(titleData.PublisherID);
+          apiCallsMade++;
+        } catch (err) {
+          strapi.log.warn(`Biblionet company fetch failed for ID ${titleData.PublisherID}:`, err.message);
+        }
+
         const newPublisher = await strapi.entityService.create(
           'api::publisher.publisher',
           {
             data: {
               name: titleData.Publisher || 'Άγνωστος Εκδότης',
               biblionetCompanyId: String(titleData.PublisherID),
+              address: companyData ? companyData.Address || null : null,
+              phone: companyData ? companyData.TelephoneNumner || null : null, // Note: TelephoneNumner is the typo in the API
+              email: companyData ? companyData.Email || null : null,
+              website: companyData ? companyData.Website || null : null,
             },
           }
         );
@@ -100,7 +124,7 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
       }
     }
 
-    // 6. Find or create Authors
+    // 7. Find or create Authors (with enrichment)
     const authorIds = [];
     for (const author of authorsData) {
       if (!author.ContributorID) continue;
@@ -113,13 +137,23 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
       if (existingAuthors && existingAuthors.length > 0) {
         authorIds.push(existingAuthors[0].id);
       } else {
+        // Enrich author details
+        let personData = null;
+        try {
+          personData = await biblionet.getPerson(author.ContributorID);
+          apiCallsMade++;
+        } catch (err) {
+          strapi.log.warn(`Biblionet person fetch failed for ID ${author.ContributorID}:`, err.message);
+        }
+
         const newAuthor = await strapi.entityService.create(
           'api::author.author',
           {
             data: {
-              name: author.ContributorName || `${author.FirstName || ''} ${author.LastName || ''}`.trim(),
-              firstname: author.FirstName || null,
-              lastname: author.LastName || null,
+              name: author.ContributorFullName || 'Άγνωστος Συγγραφέας', // BUGFIX: was ContributorName
+              firstname: personData ? personData.Name || null : null,
+              lastname: personData ? personData.Surname || null : null,
+              biography: personData ? personData.Biography || null : null,
               biblionetPersonId: String(author.ContributorID),
             },
           }
@@ -128,14 +162,96 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
       }
     }
 
-    // 7. Create Book (Έντυπο)
-    const coverUrl = titleData.CoverImage
-      ? (titleData.CoverImage.startsWith('http')
-        ? titleData.CoverImage
-        : `https://biblionet.gr${titleData.CoverImage}`)
-      : null;
+    // 8. Find or create Subjects (DDC Classification)
+    const subjectIds = [];
+    for (const subject of subjectsData) {
+      if (!subject.SubjectsID) continue;
 
-    // Extract year from FirstPublishDate (may be "2005" or "2005-01-01" etc.)
+      const existingSubjects = await strapi.entityService.findMany(
+        'api::subject.subject',
+        { filters: { biblionetSubjectId: String(subject.SubjectsID) } }
+      );
+
+      if (existingSubjects && existingSubjects.length > 0) {
+        subjectIds.push(existingSubjects[0].id);
+      } else {
+        const newSubject = await strapi.entityService.create(
+          'api::subject.subject',
+          {
+            data: {
+              subjectTitle: subject.SubjectTitle || 'Άγνωστο Θέμα',
+              subjectDDC: subject.SubjectDDC || null,
+              biblionetSubjectId: String(subject.SubjectsID),
+            },
+          }
+        );
+        subjectIds.push(newSubject.id);
+      }
+    }
+
+    // 9. Download and Upload Cover Image (Save locally)
+    let localCoverUrl = null;
+    if (titleData.CoverImage) {
+      const fs = require('fs');
+      const path = require('path');
+      const tmpDir = path.join(process.cwd(), '.tmp');
+      const tmpFilePath = path.join(tmpDir, `cover_${titleData.TitlesID}.jpg`);
+
+      try {
+        const remoteUrl = titleData.CoverImage.startsWith('http')
+          ? titleData.CoverImage
+          : `https://biblionet.gr${titleData.CoverImage}`;
+
+        // Download image buffer
+        const imageBuffer = await biblionet.downloadImage(remoteUrl);
+
+        // Ensure tmp dir exists
+        if (!fs.existsSync(tmpDir)) {
+          fs.mkdirSync(tmpDir, { recursive: true });
+        }
+
+        // Write to temp file
+        fs.writeFileSync(tmpFilePath, imageBuffer);
+
+        const stats = fs.statSync(tmpFilePath);
+
+        // Upload to Strapi Media Library
+        const [uploadedFile] = await strapi.plugin('upload').service('upload').upload({
+          data: {},
+          files: {
+            name: `cover_${titleData.TitlesID}.jpg`,
+            type: 'image/jpeg',
+            size: stats.size,
+            path: tmpFilePath,
+          },
+        });
+
+        if (uploadedFile && uploadedFile.url) {
+          localCoverUrl = uploadedFile.url;
+        }
+
+        // Clean up temp file
+        if (fs.existsSync(tmpFilePath)) {
+          fs.unlinkSync(tmpFilePath);
+        }
+      } catch (err) {
+        strapi.log.warn('Cover image download/upload failed:', err.message || err);
+        // Clean up temp file if it exists
+        try {
+          if (fs.existsSync(tmpFilePath)) {
+            fs.unlinkSync(tmpFilePath);
+          }
+        } catch (unlinkErr) {
+          // Ignore
+        }
+        // Fallback: Use remote URL if download/upload fails
+        localCoverUrl = titleData.CoverImage.startsWith('http')
+          ? titleData.CoverImage
+          : `https://biblionet.gr${titleData.CoverImage}`;
+      }
+    }
+
+    // 10. Extract year from FirstPublishDate (may be "2005" or "2005-01-01" etc.)
     let yearPublished = null;
     if (titleData.FirstPublishDate) {
       const yearMatch = String(titleData.FirstPublishDate).match(/\d{4}/);
@@ -153,7 +269,7 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
       pages: titleData.PageNo ? parseInt(titleData.PageNo, 10) : null,
       language: titleData.Language || null,
       originalLanguage: titleData.LanguageOriginal || null,
-      coverImageUrl: coverUrl,
+      coverImageUrl: localCoverUrl,
       binding: titleData.Cover || null,
       edition: titleData.EditionNo || null,
       dimensions: titleData.Dimensions || null,
@@ -167,12 +283,16 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
       biblionetCategoryId: titleData.CategoryID ? String(titleData.CategoryID) : null,
       publisher: publisherId,
       authors: authorIds,
+      subjects: subjectIds,
     };
 
     const newBook = await strapi.entityService.create('api::book.book', {
       data: bookData,
-      populate: ['authors', 'publisher'],
+      populate: ['authors', 'publisher', 'subjects'],
     });
+
+    // Dynamic increment based on actual calls made
+    quota.increment(apiCallsMade);
 
     return ctx.send({
       source: 'biblionet',

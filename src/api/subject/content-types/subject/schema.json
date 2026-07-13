@@ -1,39 +1,32 @@
 {
   "kind": "collectionType",
-  "collectionName": "authors",
+  "collectionName": "subjects",
   "info": {
-    "singularName": "author",
-    "pluralName": "authors",
-    "displayName": "Συγγραφείς",
-    "description": ""
+    "singularName": "subject",
+    "pluralName": "subjects",
+    "displayName": "Θέματα DDC",
+    "description": "Θεματική ταξινόμηση Dewey Decimal Classification (από Biblionet)"
   },
   "options": {
     "draftAndPublish": false
   },
-  "pluginOptions": {},
   "attributes": {
-    "name": {
+    "subjectTitle": {
       "type": "string",
       "required": true
     },
-    "firstname": {
+    "subjectDDC": {
       "type": "string"
     },
-    "lastname": {
-      "type": "string"
-    },
-    "biblionetPersonId": {
+    "biblionetSubjectId": {
       "type": "string",
       "unique": true
-    },
-    "biography": {
-      "type": "text"
     },
     "books": {
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::book.book",
-      "mappedBy": "authors"
+      "mappedBy": "subjects"
     }
   }
 }

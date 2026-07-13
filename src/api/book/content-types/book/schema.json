@@ -109,6 +109,12 @@
       "relation": "manyToOne",
       "target": "api::magazine.magazine",
       "inversedBy": "issues"
+    },
+    "subjects": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::subject.subject",
+      "inversedBy": "books"
     }
   }
 }

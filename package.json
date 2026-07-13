@@ -10,7 +10,7 @@
     "strapi": "strapi"
   },
   "devDependencies": {
-    "better-sqlite3": "8.5.2"
+    "better-sqlite3": "^8.5.2"
   },
   "dependencies": {
     "@strapi/plugin-users-permissions": "^4.16.2",

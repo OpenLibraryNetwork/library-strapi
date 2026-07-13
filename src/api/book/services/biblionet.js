@@ -145,6 +145,71 @@ module.exports = {
     return extractAllData(response);
   },
 
+  /**
+   * Get subjects for a title (DDC classification)
+   * @param {string} titlesId - Biblionet TitlesID
+   * @returns {Array} Array of subject objects
+   */
+  async getSubjects(titlesId) {
+    const response = await postBiblionet('get_title_subject', {
+      username: process.env.BIBLIONET_USER,
+      password: process.env.BIBLIONET_PASS,
+      title: titlesId,
+    });
+    return extractAllData(response);
+  },
+
+  /**
+   * Get person details (author enrichment)
+   * @param {string} personId - Biblionet PersonsID
+   * @returns {object|null} Person data or null
+   */
+  async getPerson(personId) {
+    const response = await postBiblionet('get_person', {
+      username: process.env.BIBLIONET_USER,
+      password: process.env.BIBLIONET_PASS,
+      person: personId,
+    });
+    return extractData(response);
+  },
+
+  /**
+   * Get company details (publisher enrichment)
+   * @param {string} companyId - Biblionet ComID
+   * @returns {object|null} Company data or null
+   */
+  async getCompany(companyId) {
+    const response = await postBiblionet('get_company', {
+      username: process.env.BIBLIONET_USER,
+      password: process.env.BIBLIONET_PASS,
+      company: companyId,
+    });
+    return extractData(response);
+  },
+
+  /**
+   * Download an image from a URL and return a Buffer
+   * @param {string} imageUrl - Full URL of the image
+   * @returns {Promise<Buffer>} Image data
+   */
+  downloadImage(imageUrl) {
+    return new Promise((resolve, reject) => {
+      https.get(imageUrl, (res) => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`Failed to download image: Status Code ${res.statusCode}`));
+          return;
+        }
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          resolve(Buffer.concat(chunks));
+        });
+      }).on('error', (err) => {
+        reject(err);
+      });
+    });
+  },
+
   extractData,
   extractAllData,
   filterAuthors,

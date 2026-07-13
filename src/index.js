@@ -49,6 +49,9 @@ async function grantAuthenticatedPermissions(strapi) {
     'api::magazine.magazine.create',
     'api::library.library.find',
     'api::library.library.findOne',
+    'api::subject.subject.find',
+    'api::subject.subject.findOne',
+    'api::subject.subject.create',
   ];
 
   try {
@@ -114,6 +117,8 @@ async function grantPublicPermissions(strapi) {
     'api::copy.copy.findOne',
     'api::magazine.magazine.find',
     'api::magazine.magazine.findOne',
+    'api::subject.subject.find',
+    'api::subject.subject.findOne',
   ];
 
   try {
@@ -205,6 +210,10 @@ module.exports = {
         'api::magazine.magazine.findOne',
         'api::magazine.magazine.create',
         'api::magazine.magazine.update',
+        'api::subject.subject.find',
+        'api::subject.subject.findOne',
+        'api::subject.subject.create',
+        'api::subject.subject.update',
       ],
     });
 
@@ -226,6 +235,8 @@ module.exports = {
         'api::copy.copy.findOne',
         'api::magazine.magazine.find',
         'api::magazine.magazine.findOne',
+        'api::subject.subject.find',
+        'api::subject.subject.findOne',
       ],
     });
   },
