@@ -7,10 +7,15 @@
     "develop": "strapi develop",
     "start": "strapi start",
     "build": "strapi build",
-    "strapi": "strapi"
+    "strapi": "strapi",
+    "test": "jest --runInBand",
+    "test:unit": "jest --runInBand tests/unit",
+    "test:integration": "jest --runInBand tests/integration"
   },
   "devDependencies": {
-    "better-sqlite3": "^8.5.2"
+    "better-sqlite3": "^8.5.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
   },
   "dependencies": {
     "@strapi/plugin-users-permissions": "^4.16.2",

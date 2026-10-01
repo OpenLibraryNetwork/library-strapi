@@ -92,6 +92,14 @@ function extractData(response) {
 function extractAllData(response) {
   if (!response) return [];
 
+  // Biblionet answers {"error": {...}} both for "no results" and for real errors; the two are
+  // not documented apart, so log the text and let the caller treat it as empty.
+  if (typeof response === 'object' && !Array.isArray(response) && response.error) {
+    const text = response.error.error || JSON.stringify(response.error);
+    if (global.strapi) global.strapi.log.warn(`Biblionet returned an error object: ${text}`);
+    return [];
+  }
+
   if (Array.isArray(response)) {
     const inner = response[0];
     if (Array.isArray(inner)) {
@@ -105,15 +113,6 @@ function extractAllData(response) {
   }
 
   return [];
-}
-
-/**
- * Filter contributors to get only authors (ContributorTypeID === "1")
- */
-function filterAuthors(contributors) {
-  return contributors.filter(
-    (c) => String(c.ContributorTypeID) === '1'
-  );
 }
 
 module.exports = {
@@ -212,5 +211,4 @@ module.exports = {
 
   extractData,
   extractAllData,
-  filterAuthors,
 };

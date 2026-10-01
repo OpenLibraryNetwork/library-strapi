@@ -20,7 +20,10 @@
     },
     "biblionetSubjectId": {
       "type": "string",
-      "unique": true
+      "unique": true,
+      "column": {
+        "unique": true
+      }
     },
     "books": {
       "type": "relation",

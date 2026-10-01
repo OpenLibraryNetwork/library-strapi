@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='utf-8' ?>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<rss version="2.0"
+      xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/"
+      xmlns:dc="http://purl.org/dc/elements/1.1/"
+      xmlns:atom="http://www.w3.org/2005/Atom">
+   <channel>
+     <title><![CDATA[Κατάλογος Εθνικής Βιβλιοθήκης της Ελλάδος Search for '2241-5580' with limit(s): '(bib-level:(&quot;s&quot;)) AND (suppress:false)']]></title>
+     <link>https://catalogue.nlg.gr/cgi-bin/koha/opac-search.pl?idx=ns&amp;q=2241-5580&amp;limit=bib-level%3As&amp;format=rss</link>
+     <atom:link rel="self" type="application/rss+xml" href="https://catalogue.nlg.gr/cgi-bin/koha/opac-search.pl?idx=ns&amp;q=2241-5580&amp;limit=bib-level%3As&amp;sort_by=relevance&amp;format=atom"/>
+     <description><![CDATA[ Search results for '2241-5580' with limit(s): '(bib-level:(&quot;s&quot;)) AND (suppress:false)' at Κατάλογος Εθνικής Βιβλιοθήκης της Ελλάδος]]></description>
+     <opensearch:totalResults>1</opensearch:totalResults>
+     <opensearch:startIndex>0</opensearch:startIndex>
+     
+       <opensearch:itemsPerPage>20</opensearch:itemsPerPage>
+     
+	 
+     <atom:link rel="search" type="application/opensearchdescription+xml" href="https://catalogue.nlg.gr/cgi-bin/koha/opac-search.pl?&amp;sort_by=&amp;format=opensearchdescription"/>
+     <opensearch:Query role="request" searchTerms="" startPage="" />
+     <item>
+       <title>
+    Κοινωνικός Αναρχισμός
+
+
+
+
+
+
+</title>
+       <dc:identifier>ISBN:</dc:identifier>
+        <link>https://catalogue.nlg.gr/cgi-bin/koha/opac-detail.pl?biblionumber=633300</link>
+       <description><![CDATA[
+
+
+
+
+
+
+
+    
+    
+
+
+	   <p>
+	   Θεσσαλονίκη : Ελευθεριακές Εκδόσεις Κουρσάλ, 2013
+                        
+                        
+                         24 εκ.. 
+                        
+       </p>
+
+<p><a href="https://catalogue.nlg.gr/cgi-bin/koha/opac-reserve.pl?biblionumber=633300">Place hold on <em>Κοινωνικός Αναρχισμός</em></a></p>
+
+						]]></description>
+       <guid>https://catalogue.nlg.gr/cgi-bin/koha/opac-detail.pl?biblionumber=633300</guid>
+     </item>
+	 
+   </channel>
+</rss>
+
+
+
+
+

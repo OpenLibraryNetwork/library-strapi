@@ -53,4 +53,12 @@ module.exports = {
       limit: MAX_DAILY_CALLS,
     };
   },
+
+  /**
+   * Reset the counter (used by tests).
+   */
+  reset() {
+    callCount = 0;
+    currentDate = new Date().toDateString();
+  },
 };

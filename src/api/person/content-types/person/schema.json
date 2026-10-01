@@ -1,0 +1,71 @@
+{
+  "kind": "collectionType",
+  "collectionName": "persons",
+  "info": {
+    "singularName": "person",
+    "pluralName": "persons",
+    "displayName": "Πρόσωπα",
+    "description": "Συγγραφείς, μεταφραστές και λοιποί συντελεστές (αρχείο καθιερωμένων όρων)"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "qualifier": {
+      "type": "string"
+    },
+    "firstname": {
+      "type": "string"
+    },
+    "middlename": {
+      "type": "string"
+    },
+    "lastname": {
+      "type": "string"
+    },
+    "bornYear": {
+      "type": "string"
+    },
+    "deathYear": {
+      "type": "string"
+    },
+    "biography": {
+      "type": "text"
+    },
+    "biblionetPersonId": {
+      "type": "string",
+      "unique": true,
+      "column": {
+        "unique": true
+      }
+    },
+    "catalogedBy": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::library.library"
+    },
+    "reviewed": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "mergeInto": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::person.person"
+    },
+    "searchKey": {
+      "type": "text",
+      "private": true
+    },
+    "matchKey": {
+      "type": "text",
+      "private": true
+    }
+  }
+}

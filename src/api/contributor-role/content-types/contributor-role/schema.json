@@ -1,0 +1,31 @@
+{
+  "kind": "collectionType",
+  "collectionName": "contributor_roles",
+  "info": {
+    "singularName": "contributor-role",
+    "pluralName": "contributor-roles",
+    "displayName": "Ρόλοι συντελεστών",
+    "description": "Συγγραφέας, Μεταφραστής κ.λπ. Συμπληρώνεται αυτόματα από τη Biblionet."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "column": {
+        "unique": true
+      }
+    },
+    "biblionetTypeId": {
+      "type": "string",
+      "unique": true,
+      "column": {
+        "unique": true
+      }
+    }
+  }
+}

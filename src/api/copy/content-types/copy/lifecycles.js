@@ -1,11 +1,24 @@
 'use strict';
 
+const { errors } = require('@strapi/utils');
+const { extractRelationId } = require('../../../../utils/relation-id');
+const { isMerging } = require('../../../../utils/merge-context');
+
 /**
  * Copy (Αντίτυπα) lifecycle hooks
  *
  * 1. beforeCreate: Force library from authenticated user (tenant isolation)
  * 2. beforeUpdate: Block isAvailable changes via standard REST + prevent library reassignment
  */
+
+// A borrowed copy must be returned before it can be deleted.
+async function assertNotBorrowed(event) {
+  const where = event.params.where || {};
+  const borrowed = await strapi.db.query('api::copy.copy').count({ where: { ...where, isAvailable: false } });
+  if (borrowed > 0) {
+    throw new errors.ApplicationError('Το αντίτυπο είναι δανεισμένο και δεν μπορεί να διαγραφεί πριν επιστραφεί.');
+  }
+}
 
 module.exports = {
   async beforeCreate(event) {
@@ -56,5 +69,22 @@ module.exports = {
     if (data.library !== undefined) {
       throw new Error('Cannot change library assignment of an existing copy');
     }
+
+    // CATALOG INTEGRITY: a copy never changes publication (except inside a cataloguer merge)
+    const publicationChange = extractRelationId(data.publication);
+    if (publicationChange.changed && !isMerging()) {
+      const current = await strapi.entityService.findOne('api::copy.copy', where.id, { populate: ['publication'] });
+      if ((current?.publication?.id ?? null) !== publicationChange.id) {
+        throw new errors.ApplicationError('Ένα αντίτυπο δεν μπορεί να αλλάξει έντυπο.');
+      }
+    }
   },
+
+  async beforeDelete(event) {
+    await assertNotBorrowed(event);
+  },
+
+  async beforeDeleteMany(event) {
+    await assertNotBorrowed(event);
+  }
 };

@@ -1,0 +1,13 @@
+{
+  "collectionName": "components_catalog_contributors",
+  "info": {
+    "displayName": "Συντελεστής",
+    "icon": "user",
+    "description": "Πρόσωπο με ρόλο σε έντυπο. Η σειρά στη λίστα είναι η σειρά παρουσίασης."
+  },
+  "options": {},
+  "attributes": {
+    "person": { "type": "relation", "relation": "oneToOne", "target": "api::person.person" },
+    "role": { "type": "relation", "relation": "oneToOne", "target": "api::contributor-role.contributor-role" }
+  }
+}

@@ -18,12 +18,19 @@
     },
     "type": {
       "type": "enumeration",
-      "enum": ["Βιβλίο", "Μπροσούρα", "Περιοδικό"],
+      "enum": [
+        "Βιβλίο",
+        "Μπροσούρα",
+        "Περιοδικό"
+      ],
       "required": true
     },
     "isbn": {
       "type": "string",
-      "unique": true
+      "unique": true,
+      "column": {
+        "unique": true
+      }
     },
     "subtitle": {
       "type": "string"
@@ -75,22 +82,19 @@
     },
     "biblionetId": {
       "type": "string",
-      "unique": true
+      "unique": true,
+      "column": {
+        "unique": true
+      }
     },
     "biblionetCategoryId": {
       "type": "string"
     },
     "issueNumber": {
-      "type": "integer"
+      "type": "string"
     },
     "publicationMonthYear": {
       "type": "string"
-    },
-    "authors": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::author.author",
-      "inversedBy": "books"
     },
     "publisher": {
       "type": "relation",
@@ -115,6 +119,34 @@
       "relation": "manyToMany",
       "target": "api::subject.subject",
       "inversedBy": "books"
+    },
+    "contributors": {
+      "type": "component",
+      "repeatable": true,
+      "component": "catalog.contributor"
+    },
+    "catalogedBy": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::library.library"
+    },
+    "reviewed": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "mergeInto": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::book.book"
+    },
+    "searchKey": {
+      "type": "text",
+      "private": true
+    },
+    "matchKey": {
+      "type": "text",
+      "private": true
     }
   }
 }

@@ -5,31 +5,25 @@
     "singularName": "magazine",
     "pluralName": "magazines",
     "displayName": "Περιοδικά",
-    "description": "Τίτλοι περιοδικών (π.χ. National Geographic). Τα τεύχη αποθηκεύονται ως Έντυπα (type=Περιοδικό)."
+    "description": "Τίτλοι περιοδικών του κοινού καταλόγου. Τα τεύχη αποθηκεύονται ως Έντυπα (type=Περιοδικό)."
   },
   "options": {
     "draftAndPublish": false
   },
   "pluginOptions": {},
   "attributes": {
-    "title": {
-      "type": "string",
-      "required": true
-    },
-    "issn": {
-      "type": "string",
-      "unique": true
-    },
-    "publisher": {
-      "type": "relation",
-      "relation": "manyToOne",
-      "target": "api::publisher.publisher"
-    },
-    "issues": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::book.book",
-      "mappedBy": "magazine"
-    }
+    "title": { "type": "string", "required": true },
+    "qualifier": { "type": "string" },
+    "issn": { "type": "string", "unique": true, "column": { "unique": true } },
+    "place": { "type": "string" },
+    "periodicity": { "type": "string" },
+    "nlgBiblionumber": { "type": "string", "unique": true, "column": { "unique": true } },
+    "publisher": { "type": "relation", "relation": "manyToOne", "target": "api::publisher.publisher" },
+    "issues": { "type": "relation", "relation": "oneToMany", "target": "api::book.book", "mappedBy": "magazine" },
+    "catalogedBy": { "type": "relation", "relation": "manyToOne", "target": "api::library.library" },
+    "reviewed": { "type": "boolean", "default": false, "required": true },
+    "mergeInto": { "type": "relation", "relation": "manyToOne", "target": "api::magazine.magazine" },
+    "searchKey": { "type": "text", "private": true },
+    "matchKey": { "type": "text", "private": true }
   }
 }

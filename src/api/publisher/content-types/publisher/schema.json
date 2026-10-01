@@ -18,7 +18,10 @@
     },
     "biblionetCompanyId": {
       "type": "string",
-      "unique": true
+      "unique": true,
+      "column": {
+        "unique": true
+      }
     },
     "address": {
       "type": "text"
@@ -37,6 +40,35 @@
       "relation": "oneToMany",
       "target": "api::book.book",
       "mappedBy": "publisher"
+    },
+    "alternativeName": {
+      "type": "string"
+    },
+    "qualifier": {
+      "type": "string"
+    },
+    "catalogedBy": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::library.library"
+    },
+    "reviewed": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "mergeInto": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::publisher.publisher"
+    },
+    "searchKey": {
+      "type": "text",
+      "private": true
+    },
+    "matchKey": {
+      "type": "text",
+      "private": true
     }
   }
 }
