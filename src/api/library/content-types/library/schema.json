@@ -19,6 +19,18 @@
     "description": {
       "type": "text"
     },
+    "address": {
+      "type": "text"
+    },
+    "email": {
+      "type": "email"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "website": {
+      "type": "string"
+    },
     "copies": {
       "type": "relation",
       "relation": "oneToMany",
