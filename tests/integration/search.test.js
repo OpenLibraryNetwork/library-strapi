@@ -66,3 +66,13 @@ test('public can search', async () => {
   const res = await request(strapi.server.httpServer).get(`/api/persons/search?q=${encodeURIComponent('παππα')}`);
   expect(res.status).toBe(200);
 });
+
+test('records created in the same millisecond come back in id order (stable cut-off)', async () => {
+  const a = await docs.create('api::book.book', { data: { title: 'Ισοπαλία Χρόνου Α', type: 'Μπροσούρα' } });
+  const b = await docs.create('api::book.book', { data: { title: 'Ισοπαλία Χρόνου Β', type: 'Μπροσούρα' } });
+  const same = new Date('2026-01-01T00:00:00.000Z');
+  await strapi.db.query('api::book.book').updateMany({ where: { id: { $in: [a.id, b.id] } }, data: { createdAt: same } });
+  const res = await get(`/api/books/search?type=${encodeURIComponent('Μπροσούρα')}&q=${encodeURIComponent('ισοπαλια χρονου')}`);
+  expect(res.status).toBe(200);
+  expect(res.body.data.map((x) => x.id)).toEqual([a.id, b.id]);
+});

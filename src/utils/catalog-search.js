@@ -23,7 +23,7 @@ function searchAction(uid, { populate = {}, allowType = false } = {}) {
     const results = await strapi.documents(uid).findMany({
       filters,
       populate,
-      sort: { createdAt: 'asc' }, // Strapi 5: id order is not creation order
+      sort: [{ createdAt: 'asc' }, { id: 'asc' }], // Strapi 5: id order is not creation order; id breaks ties
       limit: MAX_RESULTS,
     });
     return this.transformResponse(await this.sanitizeOutput(results, ctx));

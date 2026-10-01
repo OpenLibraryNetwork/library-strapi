@@ -131,8 +131,8 @@ async function executeMerge(kind, event) {
   const sourceId = event.result.id;
   const field = BIBLIONET_FIELD[kind];
 
-  // Runs inside the update's transaction (see bootstrap/entity-service.js): on any error the whole
-  // update, including the mergeInto value, is rolled back and the original error reaches the admin.
+  // Runs inside the update's transaction (the Document Service wraps every action in wrapInTransaction): on any
+  // error the whole update, including the mergeInto value, is rolled back and the original error reaches the admin.
   await runAsMerge(() => strapi.db.transaction(async () => {
     const source = await strapi.db.query(uid).findOne({ where: { id: sourceId } });
     await MERGERS[kind](sourceId, targetId);

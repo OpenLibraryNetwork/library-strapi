@@ -73,7 +73,7 @@ module.exports = createCoreController('api::magazine.magazine', ({ strapi }) => 
   async search(ctx) {
     const filters = buildSearchFilters(ctx.query.q);
     if (!filters) return ctx.badRequest('Η αναζήτηση χρειάζεται τουλάχιστον 2 χαρακτήρες.');
-    const results = await strapi.documents(UID).findMany({ filters, populate: POPULATE, sort: { createdAt: 'asc' }, limit: MAX_RESULTS });
+    const results = await strapi.documents(UID).findMany({ filters, populate: POPULATE, sort: [{ createdAt: 'asc' }, { id: 'asc' }], limit: MAX_RESULTS });
     const body = await this.transformResponse(await this.sanitizeOutput(results, ctx));
     const libraryId = await getUserLibraryId(strapi, ctx.state.user);
     if (libraryId) {

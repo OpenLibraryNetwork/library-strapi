@@ -238,3 +238,13 @@ describe('2γ minors', () => {
     expect(second.body.candidates[0].id).toBe(first.body.data.id);
   });
 });
+
+test('magazines created in the same millisecond come back in id order (stable cut-off)', async () => {
+  const a = await docs.create('api::magazine.magazine', { data: { title: 'Ισοπαλία Περιοδικό Α' } });
+  const b = await docs.create('api::magazine.magazine', { data: { title: 'Ισοπαλία Περιοδικό Β' } });
+  const same = new Date('2026-01-01T00:00:00.000Z');
+  await strapi.db.query('api::magazine.magazine').updateMany({ where: { id: { $in: [a.id, b.id] } }, data: { createdAt: same } });
+  const res = await get(`/api/magazines/search?q=${encodeURIComponent('ισοπαλια περιοδικο')}`);
+  expect(res.status).toBe(200);
+  expect(res.body.data.map((x) => x.id)).toEqual([a.id, b.id]);
+});
