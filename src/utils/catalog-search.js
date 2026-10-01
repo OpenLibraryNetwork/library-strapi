@@ -20,10 +20,10 @@ function searchAction(uid, { populate = {}, allowType = false } = {}) {
     if (!filters) return ctx.badRequest('Η αναζήτηση χρειάζεται τουλάχιστον 2 χαρακτήρες.');
     if (allowType && ctx.query.type) filters.type = ctx.query.type;
 
-    const results = await strapi.entityService.findMany(uid, {
+    const results = await strapi.documents(uid).findMany({
       filters,
       populate,
-      sort: { id: 'asc' },
+      sort: { createdAt: 'asc' }, // Strapi 5: id order is not creation order
       limit: MAX_RESULTS,
     });
     return this.transformResponse(await this.sanitizeOutput(results, ctx));

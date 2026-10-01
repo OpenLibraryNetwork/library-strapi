@@ -16,7 +16,7 @@ const POPULATE = { publisher: true };
 
 module.exports = ({ strapi }) => {
   async function findOne(filters) {
-    const [magazine] = await strapi.entityService.findMany(MAGAZINE, { filters, populate: POPULATE, limit: 1 });
+    const [magazine] = await strapi.documents(MAGAZINE).findMany({ filters, populate: POPULATE, limit: 1 });
     return magazine || null;
   }
 
@@ -40,7 +40,7 @@ module.exports = ({ strapi }) => {
     const existing = await found();
     if (existing) return existing.id;
     try {
-      return (await strapi.entityService.create(PUBLISHER, { data: { name, reviewed: false } })).id;
+      return (await strapi.documents(PUBLISHER).create({ data: { name, reviewed: false } })).id;
     } catch (err) {
       if (!(err instanceof DuplicateRecordError)) throw err;
       return (await found()).id; // created by a parallel import
@@ -60,7 +60,7 @@ module.exports = ({ strapi }) => {
       reviewed: true,
     };
     try {
-      return await strapi.entityService.create(MAGAZINE, { data, populate: POPULATE });
+      return await strapi.documents(MAGAZINE).create({ data, populate: POPULATE });
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
       const raced = await findOne({ issn: record.issn });

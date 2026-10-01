@@ -38,16 +38,24 @@ function pickFields(input, fields) {
   return out;
 }
 
-async function assertRelationsExist(uid, ids, label) {
-  if (!ids.length) return;
-  if (!ids.every((id) => Number.isInteger(id))) throw new LocalInputError(`Μη έγκυρο id για ${label}.`);
-  const unique = [...new Set(ids)];
-  const found = await strapi.db.query(uid).count({ where: { id: { $in: unique } } });
-  if (found !== unique.length) throw new LocalInputError(`Δεν βρέθηκε ${label}.`);
+/**
+ * Relation inputs of the local endpoints are documentIds (Strapi 5). Returns the numeric ids, in the same order,
+ * which the Document Service accepts in relation fields.
+ */
+async function resolveDocumentIds(uid, documentIds, label) {
+  if (!documentIds.length) return [];
+  if (!documentIds.every((d) => typeof d === 'string' && d.trim() !== '')) {
+    throw new LocalInputError(`Μη έγκυρο αναγνωριστικό για ${label}.`);
+  }
+  const unique = [...new Set(documentIds)];
+  const rows = await strapi.db.query(uid).findMany({ where: { documentId: { $in: unique } }, select: ['id', 'documentId'] });
+  if (rows.length !== unique.length) throw new LocalInputError(`Δεν βρέθηκε ${label}.`);
+  const byDoc = new Map(rows.map((r) => [r.documentId, r.id]));
+  return documentIds.map((d) => byDoc.get(d));
 }
 
 async function respond(controller, ctx, entity) {
-  return controller.transformResponse(await controller.sanitizeOutput(entity, ctx)).data;
+  return (await controller.transformResponse(await controller.sanitizeOutput(entity, ctx))).data;
 }
 
 /**
@@ -59,7 +67,7 @@ async function createLocalRecord(ctx, controller, uid, data, populate = {}, { fi
   if (!libraryId) return ctx.forbidden('Ο χρήστης δεν ανήκει σε βιβλιοθήκη.');
 
   try {
-    const created = await strapi.entityService.create(uid, {
+    const created = await strapi.documents(uid).create({
       data: { ...data, catalogedBy: libraryId, reviewed: false },
       populate,
     });
@@ -68,7 +76,7 @@ async function createLocalRecord(ctx, controller, uid, data, populate = {}, { fi
   } catch (err) {
     if (err instanceof DuplicateRecordError) {
       const ids = err.details.candidates.map((c) => c.id);
-      const candidates = await strapi.entityService.findMany(uid, { filters: { id: { $in: ids } }, populate });
+      const candidates = await strapi.documents(uid).findMany({ filters: { id: { $in: ids } }, populate });
       ctx.status = 409;
       ctx.body = {
         data: null,
@@ -94,4 +102,4 @@ async function createLocalRecord(ctx, controller, uid, data, populate = {}, { fi
   }
 }
 
-module.exports = { LOCAL_FIELDS, LocalInputError, pickFields, assertRelationsExist, createLocalRecord };
+module.exports = { LOCAL_FIELDS, LocalInputError, pickFields, resolveDocumentIds, createLocalRecord };

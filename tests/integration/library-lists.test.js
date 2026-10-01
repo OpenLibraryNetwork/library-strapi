@@ -41,7 +41,7 @@ const get = (path, jwt) => {
   const req = request(strapi.server.httpServer).get(path);
   return jwt ? req.set('Authorization', `Bearer ${jwt}`) : req;
 };
-const rows = (res) => res.body.data.map((d) => [d.attributes.name, d.attributes.bookCount]);
+const rows = (res) => res.body.data.map((d) => [d.name, d.bookCount]);
 
 describe('GET /api/persons/authors', () => {
   test('only authors with copies in my library; translators excluded (Review Focus 1)', async () => {
@@ -70,8 +70,8 @@ describe('GET /api/persons/authors', () => {
 
   test('search keys are not exposed', async () => {
     const res = await get('/api/persons/authors', libA.jwt);
-    expect(res.body.data[0].attributes.searchKey).toBeUndefined();
-    expect(res.body.data[0].attributes.matchKey).toBeUndefined();
+    expect(res.body.data[0].searchKey).toBeUndefined();
+    expect(res.body.data[0].matchKey).toBeUndefined();
   });
 
   test('too short query → 400', async () => {

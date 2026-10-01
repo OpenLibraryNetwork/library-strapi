@@ -64,13 +64,13 @@ describe('persons/local', () => {
   test('name is composed from parts', async () => {
     const res = await post('/api/persons/local', { firstname: 'Γιώργος', middlename: 'Κ.', lastname: 'Νικολάου' });
     expect(res.status).toBe(201);
-    expect(res.body.data.attributes.name).toBe('Γιώργος Κ. Νικολάου');
+    expect(res.body.data.name).toBe('Γιώργος Κ. Νικολάου');
   });
 
   test('duplicate → 409 with candidates, no override possible', async () => {
     const res = await post('/api/persons/local', { name: 'ΑΝΝΑ ΛΑΜΠΡΙΔΟΥ', confirmNotDuplicate: true });
     expect(res.status).toBe(409);
-    expect(res.body.candidates.map((c) => c.attributes.name)).toEqual(['Άννα Λαμπρίδου']);
+    expect(res.body.candidates.map((c) => c.name)).toEqual(['Άννα Λαμπρίδου']);
   });
 
   test('qualifier makes a homonym acceptable', async () => {
@@ -91,7 +91,7 @@ describe('publishers/local', () => {
   test('201 with contact fields', async () => {
     const res = await post('/api/publishers/local', { name: 'Αυτοέκδοση Χ', email: 'x@example.org' });
     expect(res.status).toBe(201);
-    expect(res.body.data.attributes.email).toBe('x@example.org');
+    expect(res.body.data.email).toBe('x@example.org');
   });
 });
 
@@ -109,32 +109,32 @@ describe('books/local', () => {
       title: 'Για την αυτοοργάνωση',
       yearPublished: 2019,
       isbn: '9789602116524',
-      publisher: publisher.id,
-      contributors: [{ person: person.id, role: authorRole.id }],
-      subjects: [subject.id],
+      publisher: publisher.documentId,
+      contributors: [{ person: person.documentId, role: authorRole.documentId }],
+      subjects: [subject.documentId],
     });
     expect(res.status).toBe(201);
-    const a = res.body.data.attributes;
+    const a = res.body.data;
     expect(a.isbn).toBeNull();
     expect(a.reviewed).toBe(false);
-    expect(a.contributors[0].person.data.attributes.name).toBe('Συγγραφέας Μπροσούρας');
-    expect(a.publisher.data.id).toBe(publisher.id);
-    expect(a.subjects.data[0].id).toBe(subject.id);
+    expect(a.contributors[0].person.name).toBe('Συγγραφέας Μπροσούρας');
+    expect(a.publisher.id).toBe(publisher.id);
+    expect(a.subjects[0].id).toBe(subject.id);
     expect(biblionet.searchByIsbn).not.toHaveBeenCalled();
   });
 
   test('brochure duplicate → 409', async () => {
     const res = await post('/api/books/local', {
-      type: 'Μπροσούρα', title: 'ΓΙΑ ΤΗΝ ΑΥΤΟΟΡΓΑΝΩΣΗ', yearPublished: 2019, publisher: publisher.id,
+      type: 'Μπροσούρα', title: 'ΓΙΑ ΤΗΝ ΑΥΤΟΟΡΓΑΝΩΣΗ', yearPublished: 2019, publisher: publisher.documentId,
     });
     expect(res.status).toBe(409);
-    expect(res.body.candidates[0].attributes.title).toBe('Για την αυτοοργάνωση');
+    expect(res.body.candidates[0].title).toBe('Για την αυτοοργάνωση');
   });
 
   test('ISBN book not in Biblionet → 201 local', async () => {
     const res = await post('/api/books/local', { type: 'Βιβλίο', title: 'Foreign Book', isbn: '0-8044-2957-X' });
     expect(res.status).toBe(201);
-    expect(res.body.data.attributes).toMatchObject({ isbn: '9780804429573', biblionetId: null });
+    expect(res.body.data).toMatchObject({ isbn: '9780804429573', biblionetId: null });
     // ISBN-13 lookup + ISBN-10 retry
     expect(biblionet.searchByIsbn.mock.calls.map((c) => c[0])).toEqual(['9780804429573', '080442957X']);
   });
@@ -150,7 +150,7 @@ describe('books/local', () => {
     const res = await post('/api/books/local', { type: 'Βιβλίο', title: 'Λάθος τίτλος', isbn: '978-960-211-652-4' });
     expect(res.status).toBe(200);
     expect(res.body.source).toBe('biblionet');
-    expect(res.body.data.attributes.title).toBe('Θεραπείας συνέχεια');
+    expect(res.body.data.title).toBe('Θεραπείας συνέχεια');
   });
 
   test('Biblionet down → 502 and nothing is created', async () => {
@@ -158,6 +158,11 @@ describe('books/local', () => {
     const res = await post('/api/books/local', { type: 'Βιβλίο', title: 'Κάτι', isbn: '978-0-306-40615-7' });
     expect(res.status).toBe(502);
     expect(await strapi.db.query('api::book.book').count({ where: { isbn: '9780306406157' } })).toBe(0);
+  });
+
+  test('400: numeric ids are no longer accepted in relation fields', async () => {
+    const res = await post('/api/books/local', { type: 'Μπροσούρα', title: 'Αριθμητικό id', publisher: 1 });
+    expect(res.status).toBe(400);
   });
 
   test.each([

@@ -13,7 +13,7 @@ const { parseIssnCode, normalizeIssn } = require('../../../utils/issn');
 const { buildSearchFilters, MAX_RESULTS } = require('../../../utils/catalog-search');
 const { libraryListAction, magazineOf, issueCountsInLibrary } = require('../../../utils/library-catalog');
 const { getUserLibraryId } = require('../../../utils/library');
-const { LOCAL_FIELDS, LocalInputError, pickFields, assertRelationsExist, createLocalRecord } = require('../../../utils/local-catalog');
+const { LOCAL_FIELDS, LocalInputError, pickFields, resolveDocumentIds, createLocalRecord } = require('../../../utils/local-catalog');
 
 const UID = 'api::magazine.magazine';
 const POPULATE = { publisher: true };
@@ -27,7 +27,7 @@ module.exports = createCoreController('api::magazine.magazine', ({ strapi }) => 
     const issn = parseIssnCode(code);
     if (!issn) return ctx.badRequest(`Μη έγκυρο ISSN ή barcode περιοδικού: ${code ?? ''}`);
     const { source, magazine } = await strapi.service('api::magazine.nlg-import').lookup(issn);
-    const data = magazine ? this.transformResponse(await this.sanitizeOutput(magazine, ctx)).data : null;
+    const data = magazine ? (await this.transformResponse(await this.sanitizeOutput(magazine, ctx))).data : null;
     ctx.body = { source, issn, data };
   },
 
@@ -51,14 +51,13 @@ module.exports = createCoreController('api::magazine.magazine', ({ strapi }) => 
           ctx.body = {
             data: null,
             error: { status: 409, name: 'DuplicateRecordError', message: 'Το ISSN υπάρχει ήδη στον κατάλογο.' },
-            candidates: [this.transformResponse(await this.sanitizeOutput(existing, ctx)).data],
+            candidates: [(await this.transformResponse(await this.sanitizeOutput(existing, ctx))).data],
           };
           return;
         }
       }
       const publisher = input.publisher ?? null;
-      if (publisher !== null) await assertRelationsExist('api::publisher.publisher', [publisher], 'εκδότης');
-      data.publisher = publisher;
+      data.publisher = publisher === null ? null : (await resolveDocumentIds('api::publisher.publisher', [publisher], 'εκδότης'))[0];
     } catch (err) {
       if (err instanceof LocalInputError) return ctx.badRequest(err.message);
       throw err;
@@ -74,12 +73,12 @@ module.exports = createCoreController('api::magazine.magazine', ({ strapi }) => 
   async search(ctx) {
     const filters = buildSearchFilters(ctx.query.q);
     if (!filters) return ctx.badRequest('Η αναζήτηση χρειάζεται τουλάχιστον 2 χαρακτήρες.');
-    const results = await strapi.entityService.findMany(UID, { filters, populate: POPULATE, sort: { id: 'asc' }, limit: MAX_RESULTS });
-    const body = this.transformResponse(await this.sanitizeOutput(results, ctx));
+    const results = await strapi.documents(UID).findMany({ filters, populate: POPULATE, sort: { createdAt: 'asc' }, limit: MAX_RESULTS });
+    const body = await this.transformResponse(await this.sanitizeOutput(results, ctx));
     const libraryId = await getUserLibraryId(strapi, ctx.state.user);
     if (libraryId) {
       const counts = await issueCountsInLibrary(strapi, libraryId);
-      body.data.forEach((item) => { item.attributes.issuesInLibrary = counts.get(item.id) ?? 0; });
+      body.data.forEach((item) => { item.issuesInLibrary = counts.get(item.id) ?? 0; });
     }
     return body;
   },

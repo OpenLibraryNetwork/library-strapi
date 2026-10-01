@@ -22,7 +22,7 @@ beforeAll(async () => {
 afterAll(async () => { await cleanupStrapi(); });
 
 const get = (path) => request(strapi.server.httpServer).get(path).set('Authorization', `Bearer ${jwt}`);
-const names = (res) => res.body.data.map((d) => d.attributes.name || d.attributes.title);
+const names = (res) => res.body.data.map((d) => d.name || d.title);
 
 test('uppercase accented query finds lowercase name (Review Focus 3)', async () => {
   const res = await get(`/api/persons/search?q=${encodeURIComponent('ΛΟΪΖΊΔΗΣ')}`);
@@ -48,8 +48,8 @@ test('at most 20 results', async () => {
 
 test('search keys are not exposed', async () => {
   const res = await get(`/api/persons/search?q=${encodeURIComponent('παππα')}`);
-  expect(res.body.data[0].attributes.searchKey).toBeUndefined();
-  expect(res.body.data[0].attributes.matchKey).toBeUndefined();
+  expect(res.body.data[0].searchKey).toBeUndefined();
+  expect(res.body.data[0].matchKey).toBeUndefined();
 });
 
 test('publisher search', async () => {

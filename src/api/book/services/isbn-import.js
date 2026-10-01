@@ -25,7 +25,7 @@ module.exports = ({ strapi }) => {
     const existing = await strapi.db.query(uid).findOne({ where, select: ['id'] });
     if (existing) return existing.id;
     try {
-      return (await strapi.entityService.create(uid, { data })).id;
+      return (await strapi.documents(uid).create({ data })).id;
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
       const raced = await strapi.db.query(uid).findOne({ where, select: ['id'] });
@@ -123,7 +123,7 @@ module.exports = ({ strapi }) => {
   }
 
   async function findByBiblionetId(titlesId) {
-    const [book] = await strapi.entityService.findMany(BOOK, {
+    const [book] = await strapi.documents(BOOK).findMany({
       filters: { biblionetId: String(titlesId) },
       populate: BOOK_POPULATE,
       limit: 1,
@@ -150,7 +150,7 @@ module.exports = ({ strapi }) => {
       subjectIds.push(await findOrCreate(SUBJECT, { biblionetSubjectId: s.biblionetSubjectId }, s));
     }
 
-    const book = await strapi.entityService.create(BOOK, {
+    const book = await strapi.documents(BOOK).create({
       data: {
         ...mapper.mapTitle(titleData),
         type: 'Βιβλίο',
@@ -169,7 +169,7 @@ module.exports = ({ strapi }) => {
 
   return {
     async findByIsbn(isbn) {
-      const [book] = await strapi.entityService.findMany(BOOK, { filters: { isbn }, populate: BOOK_POPULATE, limit: 1 });
+      const [book] = await strapi.documents(BOOK).findMany({ filters: { isbn }, populate: BOOK_POPULATE, limit: 1 });
       return book || null;
     },
 
@@ -207,7 +207,7 @@ module.exports = ({ strapi }) => {
 
       try {
         const id = await persist(isbn, fetched);
-        return { source: 'biblionet', book: await strapi.entityService.findOne(BOOK, id, { populate: BOOK_POPULATE }) };
+        return { source: 'biblionet', book: (await strapi.documents(BOOK).findMany({ filters: { id }, populate: BOOK_POPULATE, limit: 1 }))[0] };
       } catch (err) {
         if (!isUniqueViolation(err)) throw err;
         // Another library imported the same ISBN (or title) at the same moment

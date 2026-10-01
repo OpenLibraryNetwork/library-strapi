@@ -76,18 +76,18 @@ test('imports from Biblionet with all contributors, roles and enrichment', async
   expect(res.status).toBe(200);
   expect(res.body.source).toBe('biblionet');
 
-  const a = res.body.data.attributes;
+  const a = res.body.data;
   expect(a.isbn).toBe('9789602116524');
   expect(a.type).toBe('Βιβλίο');
   expect(a.reviewed).toBe(true);
   expect(a.coverImageUrl).toBe('https://biblionet.gr/wp-content/uploadsTitleImages/08/b72584.jpg');
   expect(a.searchKey).toBeUndefined();
-  expect(a.contributors.map((c) => [c.person.data.attributes.name, c.role.data.attributes.name])).toEqual([
+  expect(a.contributors.map((c) => [c.person.name, c.role.name])).toEqual([
     ['Pino Corrias', 'Συγγραφέας'],
     ['Παναγιώτης Σκόνδρας', 'Μεταφραστής'],
   ]);
-  expect(a.publisher.data.attributes).toMatchObject({ name: 'Νεφέλη', phone: '210 3607744', reviewed: true });
-  expect(a.subjects.data.map((s) => s.attributes.subjectDDC)).toEqual(['889.3']);
+  expect(a.publisher).toMatchObject({ name: 'Νεφέλη', phone: '210 3607744', reviewed: true });
+  expect(a.subjects.map((s) => s.subjectDDC)).toEqual(['889.3']);
 
   const translator = await strapi.db.query('api::person.person').findOne({ where: { biblionetPersonId: '1232' } });
   expect(translator).toMatchObject({ firstname: 'Παναγιώτης', lastname: 'Σκόνδρας', reviewed: true });
@@ -105,7 +105,7 @@ test('second lookup comes from the catalog without Biblionet calls', async () =>
 test('ISBN-10 finds the book stored as ISBN-13 (Review Focus 4)', async () => {
   const res = await lookup('960-211-652-8');
   expect(res.body.source).toBe('catalog');
-  expect(res.body.data.attributes.isbn).toBe('9789602116524');
+  expect(res.body.data.isbn).toBe('9789602116524');
 });
 
 test('person enrichment failure is not fatal; unknown role type is created; known persons are reused', async () => {
@@ -118,7 +118,7 @@ test('person enrichment failure is not fatal; unknown role type is created; know
 
   const res = await lookup('0-8044-2957-X');
   expect(res.status).toBe(200);
-  const roles = res.body.data.attributes.contributors.map((c) => c.role.data.attributes.name);
+  const roles = res.body.data.contributors.map((c) => c.role.name);
   expect(roles).toEqual(['Συγγραφέας', 'Εικονογράφος']);
   expect(await count('api::person.person', { biblionetPersonId: '958' })).toBe(1);
   expect(await count('api::publisher.publisher', { biblionetCompanyId: '212' })).toBe(1);
@@ -146,7 +146,7 @@ test('a second ISBN of a title already in the catalog returns the catalog record
   const res = await lookup('978-1-4028-9462-6');
   expect(res.status).toBe(200);
   expect(res.body.source).toBe('catalog');
-  expect(res.body.data.attributes.biblionetId).toBe('72584');
+  expect(res.body.data.biblionetId).toBe('72584');
   expect(await count('api::book.book')).toBe(before);
   expect(biblionet.getContributors).not.toHaveBeenCalled();
   expect(quota.getUsage().used).toBe(1);
@@ -157,7 +157,7 @@ test('not found as ISBN-13 → retried once as ISBN-10 (review #6)', async () =>
   const res = await lookup('978-0-13-235088-4');
   expect(res.status).toBe(200);
   expect(res.body.source).toBe('biblionet');
-  expect(res.body.data.attributes.isbn).toBe('9780132350884');
+  expect(res.body.data.isbn).toBe('9780132350884');
   expect(biblionet.searchByIsbn.mock.calls.map((c) => c[0])).toEqual(['9780132350884', '0132350882']);
 });
 
@@ -174,7 +174,7 @@ test('import with no contributors goes to the review queue', async () => {
   const res = await lookup('978-1-56619-909-4');
   expect(res.status).toBe(200);
   expect(res.body.source).toBe('biblionet');
-  expect(res.body.data.attributes.reviewed).toBe(false);
+  expect(res.body.data.reviewed).toBe(false);
 });
 
 test('import with no subjects goes to the review queue', async () => {
@@ -182,7 +182,7 @@ test('import with no subjects goes to the review queue', async () => {
   biblionet.getSubjects.mockResolvedValue([]);
   const res = await lookup('978-0-596-52068-7');
   expect(res.status).toBe(200);
-  expect(res.body.data.attributes.reviewed).toBe(false);
+  expect(res.body.data.reviewed).toBe(false);
 });
 
 describe('quota is enforced during an import (deferred minor #6)', () => {
@@ -210,7 +210,7 @@ describe('quota is enforced during an import (deferred minor #6)', () => {
     const res = await lookup('978-0-451-52493-5');
     expect(res.status).toBe(200);
     expect(biblionet.getPerson).not.toHaveBeenCalled();
-    expect(res.body.data.attributes.contributors[0].person.data.attributes.name).toBe('Νέο Πρόσωπο Α');
+    expect(res.body.data.contributors[0].person.name).toBe('Νέο Πρόσωπο Α');
     expect(quota.getUsage().used).toBe(limit);
   });
 });

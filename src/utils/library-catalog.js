@@ -19,7 +19,7 @@ class QueryTooShortError extends Error {
  * Aggregation happens in memory: small libraries (up to a few thousand titles).
  */
 async function findLibraryBooks(strapi, libraryId) {
-  return strapi.entityService.findMany('api::book.book', {
+  return strapi.documents('api::book.book').findMany({
     filters: { copies: { library: { id: libraryId } } },
     populate: { contributors: { populate: ['person', 'role'] }, publisher: true, magazine: { populate: ['publisher'] } },
   });
@@ -98,9 +98,9 @@ function libraryListAction(pick, countField = 'bookCount') {
     }
 
     const sanitized = await this.sanitizeOutput(result.rows.map((r) => r.entity), ctx);
-    const body = this.transformResponse(sanitized, { pagination: result.pagination });
+    const body = await this.transformResponse(sanitized, { pagination: result.pagination });
     body.data.forEach((item, i) => {
-      item.attributes[countField] = result.rows[i].bookCount;
+      item[countField] = result.rows[i].bookCount;
     });
     return body;
   };

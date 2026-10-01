@@ -45,9 +45,9 @@ describe('POST /api/magazines/issn-lookup', () => {
     const res = await lookup('22415580');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ source: 'nlg', issn: '2241-5580' });
-    const a = res.body.data.attributes;
+    const a = res.body.data;
     expect(a).toMatchObject({ title: 'Κοινωνικός Αναρχισμός', issn: '2241-5580', place: 'Θεσσαλονίκη', nlgBiblionumber: '633300', reviewed: true });
-    expect(a.publisher.data.attributes).toMatchObject({ name: 'Ελευθεριακές Εκδόσεις Κουρσάλ', reviewed: false });
+    expect(a.publisher).toMatchObject({ name: 'Ελευθεριακές Εκδόσεις Κουρσάλ', reviewed: false });
     expect(a.searchKey).toBeUndefined();
     // one overall deadline is shared by the search and the record calls (final review M-1)
     const [[, deadline]] = nlg.searchSerialsByIssn.mock.calls;
@@ -58,7 +58,7 @@ describe('POST /api/magazines/issn-lookup', () => {
   test('second lookup (barcode with add-on) → catalog, no National Library call', async () => {
     const res = await lookup('977224155800805');
     expect(res.body.source).toBe('catalog');
-    expect(res.body.data.attributes.title).toBe('Κοινωνικός Αναρχισμός');
+    expect(res.body.data.title).toBe('Κοινωνικός Αναρχισμός');
     expect(nlg.searchSerialsByIssn).not.toHaveBeenCalled();
     expect(await strapi.db.query(MAG).count({ where: { issn: '2241-5580' } })).toBe(1);
   });
@@ -95,7 +95,7 @@ describe('POST /api/magazines/issn-lookup', () => {
     nlg.getBiblio.mockResolvedValue(record);
     const res = await lookup('1108-2402');
     expect(res.body.source).toBe('nlg');
-    expect(res.body.data.attributes.publisher.data.id).toBe(existing.id);
+    expect(res.body.data.publisher.id).toBe(existing.id);
   });
 
   test('two libraries importing the same ISSN at once get one record', async () => {
@@ -134,14 +134,14 @@ describe('POST /api/magazines/local', () => {
   test('same title → 409 with candidates; a qualifier makes it a different magazine', async () => {
     const dup = await post('/api/magazines/local', { title: 'ΤΟΠΙΚΟ ΦΥΛΛΑΔΙΟ' });
     expect(dup.status).toBe(409);
-    expect(dup.body.candidates[0].attributes.title).toBe('Τοπικό Φυλλάδιο');
+    expect(dup.body.candidates[0].title).toBe('Τοπικό Φυλλάδιο');
     expect((await post('/api/magazines/local', { title: 'Τοπικό Φυλλάδιο', qualifier: 'Πάτρα' })).status).toBe(201);
   });
 
   test('ISSN already in the catalog → 409 with that magazine', async () => {
     const res = await post('/api/magazines/local', { title: 'Άλλος τίτλος', issn: '2241-5580' });
     expect(res.status).toBe(409);
-    expect(res.body.candidates[0].attributes.issn).toBe('2241-5580');
+    expect(res.body.candidates[0].issn).toBe('2241-5580');
   });
 
   test.each([
@@ -154,27 +154,27 @@ describe('POST /api/magazines/local', () => {
 });
 
 describe('issues through POST /api/books/local', () => {
-  let magazineId;
+  let magazineDocumentId;
   beforeAll(async () => {
-    magazineId = (await strapi.db.query(MAG).findOne({ where: { issn: '2241-5580' }, select: ['id'] })).id;
+    magazineDocumentId = (await strapi.db.query(MAG).findOne({ where: { issn: '2241-5580' }, select: ['documentId'] })).documentId;
   });
 
   test('201: title and publisher come from the magazine', async () => {
     const res = await post('/api/books/local', {
-      type: 'Περιοδικό', magazine: magazineId, issueNumber: '5', publicationMonthYear: 'Δεκέμβριος 2016',
+      type: 'Περιοδικό', magazine: magazineDocumentId, issueNumber: '5', publicationMonthYear: 'Δεκέμβριος 2016',
       title: 'αγνοείται', subtitle: 'Αφιέρωμα στην αυτοδιαχείριση',
     });
     expect(res.status).toBe(201);
-    const a = res.body.data.attributes;
+    const a = res.body.data;
     expect(a).toMatchObject({ type: 'Περιοδικό', title: 'Κοινωνικός Αναρχισμός', issueNumber: '5', subtitle: 'Αφιέρωμα στην αυτοδιαχείριση', reviewed: false });
-    expect(a.publisher.data.attributes.name).toBe('Ελευθεριακές Εκδόσεις Κουρσάλ');
+    expect(a.publisher.name).toBe('Ελευθεριακές Εκδόσεις Κουρσάλ');
     await docs.create('api::copy.copy', { data: { publication: res.body.data.id, library: lib.library.id, copyNumber: 1 } });
   });
 
   test('duplicate ("05") → 409 with the existing issue', async () => {
-    const res = await post('/api/books/local', { type: 'Περιοδικό', magazine: magazineId, issueNumber: '05' });
+    const res = await post('/api/books/local', { type: 'Περιοδικό', magazine: magazineDocumentId, issueNumber: '05' });
     expect(res.status).toBe(409);
-    expect(res.body.candidates[0].attributes.issueNumber).toBe('5');
+    expect(res.body.candidates[0].issueNumber).toBe('5');
   });
 
   test.each([
@@ -190,23 +190,23 @@ describe('GET /api/magazines/search and /in-library', () => {
   test('search: whole network, with my library\'s issue count', async () => {
     const res = await get(`/api/magazines/search?q=${encodeURIComponent('αναρχισμος')}`);
     expect(res.status).toBe(200);
-    const hit = res.body.data.find((d) => d.attributes.issn === '2241-5580');
-    expect(hit.attributes.issuesInLibrary).toBe(1);
+    const hit = res.body.data.find((d) => d.issn === '2241-5580');
+    expect(hit.issuesInLibrary).toBe(1);
     const local = (await get(`/api/magazines/search?q=${encodeURIComponent('φυλλαδιο')}`)).body.data;
-    expect(local.every((d) => d.attributes.issuesInLibrary === 0)).toBe(true); // Review Focus 5
+    expect(local.every((d) => d.issuesInLibrary === 0)).toBe(true); // Review Focus 5
   });
 
   test('search: public gets no counts; short query → 400', async () => {
     const res = await get(`/api/magazines/search?q=${encodeURIComponent('αναρχισμος')}`, null);
     expect(res.status).toBe(200);
-    expect(res.body.data[0].attributes.issuesInLibrary).toBeUndefined();
+    expect(res.body.data[0].issuesInLibrary).toBeUndefined();
     expect((await get(`/api/magazines/search?q=${encodeURIComponent('α')}`)).status).toBe(400);
   });
 
   test('in-library: only magazines with a copy here (Review Focus 5)', async () => {
     const res = await get('/api/magazines/in-library');
     expect(res.status).toBe(200);
-    expect(res.body.data.map((d) => [d.attributes.title, d.attributes.issuesInLibrary])).toEqual([['Κοινωνικός Αναρχισμός', 1]]);
+    expect(res.body.data.map((d) => [d.title, d.issuesInLibrary])).toEqual([['Κοινωνικός Αναρχισμός', 1]]);
     expect(res.body.meta.pagination).toMatchObject({ page: 1, total: 1 });
     const other = await createLibrarian(strapi, { libraryName: 'Χωρίς Περιοδικά' });
     expect((await get('/api/magazines/in-library', other.jwt)).body.data).toEqual([]);
@@ -224,7 +224,7 @@ describe('2γ minors', () => {
     nlg.getBiblio.mockResolvedValue(record);
     const res = await lookup('0000-0000');
     expect(res.body.source).toBe('nlg');
-    expect(res.body.data.attributes).toMatchObject({ title: 'Δύο ISSN', issn: '0000-0000' });
+    expect(res.body.data).toMatchObject({ title: 'Δύο ISSN', issn: '0000-0000' });
   });
 
   test('two libraries creating the same local ISSN at once: the second gets 409 with the first (M-9)', async () => {
