@@ -10,6 +10,7 @@ jest.mock('../../src/api/magazine/services/nlg', () => ({
   getBiblio: jest.fn(),
 }));
 
+const docs = require('../helpers/docs');
 const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
@@ -79,7 +80,7 @@ test('writes the magazine fixtures', async () => {
     type: 'Περιοδικό', magazine: magazineId, issueNumber: '5', publicationMonthYear: 'Δεκέμβριος 2016', subtitle: 'Αφιέρωμα',
   } });
   expect(issue5.status).toBe(201);
-  await strapi.entityService.create('api::copy.copy', { data: { publication: issue5.body.data.id, library: lib.library.id, copyNumber: 1 } });
+  await docs.create('api::copy.copy', { data: { publication: issue5.body.data.id, library: lib.library.id, copyNumber: 1 } });
   const issue10 = await auth(http().post('/api/books/local')).send({ data: { type: 'Περιοδικό', magazine: magazineId, issueNumber: '10' } });
   expect(issue10.status).toBe(201);
   const spring = await auth(http().post('/api/books/local')).send({ data: { type: 'Περιοδικό', magazine: magazineId, publicationMonthYear: 'Άνοιξη 2020' } });

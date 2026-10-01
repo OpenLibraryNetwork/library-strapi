@@ -1,5 +1,6 @@
 'use strict';
 
+const docs = require('../helpers/docs');
 const request = require('supertest');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
@@ -12,9 +13,9 @@ let publisherId;
 beforeAll(async () => {
   await setupStrapi();
   ({ jwt } = await createLibrarian(strapi));
-  bookId = (await strapi.entityService.create('api::book.book', { data: { title: 'Δ', type: 'Μπροσούρα' } })).id;
-  personId = (await strapi.entityService.create('api::person.person', { data: { name: 'Δοκιμή Πρόσωπο' } })).id;
-  publisherId = (await strapi.entityService.create('api::publisher.publisher', { data: { name: 'Δοκιμή Εκδότης' } })).id;
+  bookId = (await docs.create('api::book.book', { data: { title: 'Δ', type: 'Μπροσούρα' } })).id;
+  personId = (await docs.create('api::person.person', { data: { name: 'Δοκιμή Πρόσωπο' } })).id;
+  publisherId = (await docs.create('api::publisher.publisher', { data: { name: 'Δοκιμή Εκδότης' } })).id;
 });
 afterAll(async () => { await cleanupStrapi(); });
 

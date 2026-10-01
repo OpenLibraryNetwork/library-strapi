@@ -1,11 +1,12 @@
 'use strict';
 
+const docs = require('../helpers/docs');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 
 beforeAll(async () => { await setupStrapi(); });
 afterAll(async () => { await cleanupStrapi(); });
 
-const es = () => strapi.entityService;
+const es = () => docs;
 const raw = (uid, id) => strapi.db.query(uid).findOne({ where: { id } });
 const PERSON = 'api::person.person';
 const PUBLISHER = 'api::publisher.publisher';

@@ -6,6 +6,7 @@
  * Re-run this file whenever the API shape changes, then run the JavaFX tests.
  */
 
+const docs = require('../helpers/docs');
 const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
@@ -45,7 +46,7 @@ beforeAll(async () => {
   await setupStrapi();
   lib = await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Fixtures' });
 
-  const es = strapi.entityService;
+  const es = docs;
   const [author, translator] = await es.findMany('api::contributor-role.contributor-role', { sort: 'biblionetTypeId' });
   const niki = await es.create('api::person.person', {
     data: { name: 'Νίκη Λοϊζίδη', firstname: 'Νίκη', lastname: 'Λοϊζίδη', bornYear: '1950', biblionetPersonId: '15521', reviewed: true },

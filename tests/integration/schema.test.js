@@ -1,11 +1,12 @@
 'use strict';
 
+const docs = require('../helpers/docs');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 
 beforeAll(async () => { await setupStrapi(); });
 afterAll(async () => { await cleanupStrapi(); });
 
-const es = () => strapi.entityService;
+const es = () => docs;
 
 test('default contributor roles are seeded', async () => {
   const roles = await es().findMany('api::contributor-role.contributor-role', { sort: 'biblionetTypeId' });

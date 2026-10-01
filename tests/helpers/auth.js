@@ -4,7 +4,8 @@ let counter = 0;
 
 async function createLibrarian(strapi, { libraryName = 'Βιβλιοθήκη Δοκιμών' } = {}) {
   counter += 1;
-  const library = await strapi.entityService.create('api::library.library', {
+  // Document Service result: has both the numeric id and the documentId
+  const library = await strapi.documents('api::library.library').create({
     data: { name: `${libraryName} ${counter}` },
   });
   const role = await strapi.db.query('plugin::users-permissions.role').findOne({ where: { type: 'librarian' } });

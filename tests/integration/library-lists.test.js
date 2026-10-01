@@ -1,5 +1,6 @@
 'use strict';
 
+const docs = require('../helpers/docs');
 const request = require('supertest');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
@@ -11,7 +12,7 @@ beforeAll(async () => {
   libA = await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Α' });
   libB = await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Β' });
 
-  const es = strapi.entityService;
+  const es = docs;
   const roles = await es.findMany('api::contributor-role.contributor-role', { sort: 'biblionetTypeId' });
   const [author, translator] = roles;
   const niki = await es.create('api::person.person', { data: { name: 'Νίκη Λοϊζίδη' } });

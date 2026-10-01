@@ -5,6 +5,7 @@ jest.mock('../../src/api/magazine/services/nlg', () => ({
   getBiblio: jest.fn(),
 }));
 
+const docs = require('../helpers/docs');
 const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
@@ -86,7 +87,7 @@ describe('POST /api/magazines/issn-lookup', () => {
   });
 
   test('an existing publisher with the same name is reused', async () => {
-    const existing = await strapi.entityService.create('api::publisher.publisher', { data: { name: 'Άννα Λαμπράκη' } });
+    const existing = await docs.create('api::publisher.publisher', { data: { name: 'Άννα Λαμπράκη' } });
     const record = JSON.parse(JSON.stringify(record633300));
     record.fields = record.fields.map((f) => (f['022'] ? { '022': { subfields: [{ a: '1108-2402' }] } } : f))
       .map((f) => (f['260'] ? { '260': { subfields: [{ a: 'Αθήνα :' }, { b: 'Άννα Λαμπράκη,' }] } } : f));
@@ -167,7 +168,7 @@ describe('issues through POST /api/books/local', () => {
     const a = res.body.data.attributes;
     expect(a).toMatchObject({ type: 'Περιοδικό', title: 'Κοινωνικός Αναρχισμός', issueNumber: '5', subtitle: 'Αφιέρωμα στην αυτοδιαχείριση', reviewed: false });
     expect(a.publisher.data.attributes.name).toBe('Ελευθεριακές Εκδόσεις Κουρσάλ');
-    await strapi.entityService.create('api::copy.copy', { data: { publication: res.body.data.id, library: lib.library.id, copyNumber: 1 } });
+    await docs.create('api::copy.copy', { data: { publication: res.body.data.id, library: lib.library.id, copyNumber: 1 } });
   });
 
   test('duplicate ("05") → 409 with the existing issue', async () => {

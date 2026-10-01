@@ -1,15 +1,14 @@
 'use strict';
 
 const fs = require('fs');
-const Strapi = require('@strapi/strapi');
+const { createStrapi } = require('@strapi/strapi');
 
 let instance;
 
 async function setupStrapi() {
   if (!instance) {
     process.env.NODE_ENV = 'test';
-    await Strapi({ appDir: process.cwd(), distDir: process.cwd() }).load();
-    instance = global.strapi;
+    instance = await createStrapi({ appDir: process.cwd(), distDir: process.cwd() }).load();
     await instance.server.mount();
   }
   return instance;

@@ -1,5 +1,6 @@
 'use strict';
 
+const docs = require('../helpers/docs');
 const request = require('supertest');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
@@ -8,7 +9,7 @@ let jwt;
 beforeAll(async () => {
   await setupStrapi();
   ({ jwt } = await createLibrarian(strapi));
-  const es = strapi.entityService;
+  const es = docs;
   await es.create('api::person.person', { data: { name: 'Νίκος Λοϊζίδης' } });
   await es.create('api::person.person', { data: { name: 'Μαρία Παππά' } });
   for (let i = 1; i <= 25; i += 1) {

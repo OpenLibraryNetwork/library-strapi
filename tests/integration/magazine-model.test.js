@@ -1,11 +1,12 @@
 'use strict';
 
+const docs = require('../helpers/docs');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 
 beforeAll(async () => { await setupStrapi(); });
 afterAll(async () => { await cleanupStrapi(); });
 
-const es = () => strapi.entityService;
+const es = () => docs;
 const MAG = 'api::magazine.magazine';
 const BOOK = 'api::book.book';
 const COPY = 'api::copy.copy';

@@ -1,5 +1,6 @@
 'use strict';
 
+const docs = require('../helpers/docs');
 const request = require('supertest');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
@@ -20,10 +21,10 @@ test('librarian cannot use the generic magazine create (2γ: only /magazines/loc
 });
 
 test('issues are never attached from the magazine side, even by the admin', async () => {
-  const book = await strapi.entityService.create('api::book.book', { data: { title: 'Ξένο βιβλίο', type: 'Βιβλίο', isbn: '9780306406157' } });
+  const book = await docs.create('api::book.book', { data: { title: 'Ξένο βιβλίο', type: 'Βιβλίο', isbn: '9780306406157' } });
   await expect(
-    strapi.entityService.create('api::magazine.magazine', { data: { title: 'Περιοδικό Φρουρός', issues: [book.id] } })
+    docs.create('api::magazine.magazine', { data: { title: 'Περιοδικό Φρουρός', issues: [book.id] } })
   ).rejects.toThrow('τεύχους');
-  const after = await strapi.entityService.findOne('api::book.book', book.id, { populate: ['magazine'] });
+  const after = await docs.findOne('api::book.book', book.id, { populate: ['magazine'] });
   expect(after.magazine).toBeNull();
 });

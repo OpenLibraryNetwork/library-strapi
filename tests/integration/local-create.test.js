@@ -14,6 +14,7 @@ jest.mock('../../src/api/book/services/biblionet', () => {
   };
 });
 
+const docs = require('../helpers/docs');
 const request = require('supertest');
 const biblionet = require('../../src/api/book/services/biblionet');
 const quota = require('../../src/api/book/services/biblionet-quota');
@@ -28,8 +29,8 @@ let subject;
 beforeAll(async () => {
   await setupStrapi();
   ({ jwt, library } = await createLibrarian(strapi));
-  [authorRole] = await strapi.entityService.findMany('api::contributor-role.contributor-role', { filters: { biblionetTypeId: '1' } });
-  subject = await strapi.entityService.create('api::subject.subject', { data: { subjectTitle: 'Πολιτική', subjectDDC: '320' } });
+  [authorRole] = await docs.findMany('api::contributor-role.contributor-role', { filters: { biblionetTypeId: '1' } });
+  subject = await docs.create('api::subject.subject', { data: { subjectTitle: 'Πολιτική', subjectDDC: '320' } });
 });
 afterAll(async () => { await cleanupStrapi(); });
 
@@ -83,7 +84,7 @@ describe('persons/local', () => {
 
 describe('publishers/local', () => {
   test('duplicate of a Biblionet publisher → 409', async () => {
-    await strapi.entityService.create('api::publisher.publisher', { data: { name: 'Νεφέλη', biblionetCompanyId: '212' } });
+    await docs.create('api::publisher.publisher', { data: { name: 'Νεφέλη', biblionetCompanyId: '212' } });
     expect((await post('/api/publishers/local', { name: 'νεφελη' })).status).toBe(409);
   });
 

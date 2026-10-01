@@ -19,6 +19,7 @@ jest.mock('../../src/api/book/services/biblionet', () => {
   };
 });
 
+const docs = require('../helpers/docs');
 const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
@@ -63,7 +64,7 @@ beforeAll(async () => {
   biblionet.downloadImage.mockRejectedValue(new Error('no network in tests'));
 
   lib = await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Fixtures 2β' });
-  const es = strapi.entityService;
+  const es = docs;
   const [author] = await es.findMany('api::contributor-role.contributor-role', { filters: { biblionetTypeId: '1' } });
   authorRoleId = author.id;
   const group = await es.create('api::person.person', { data: { name: 'Ομάδα Γειτονιάς' } });
