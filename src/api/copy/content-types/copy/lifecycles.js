@@ -30,11 +30,10 @@ module.exports = {
     if (user) {
       let libraryId = user.library?.id || user.library;
       if (!libraryId) {
-        const fullUser = await strapi.entityService.findOne(
-          'plugin::users-permissions.user',
-          user.id,
-          { populate: ['library'] }
-        );
+        const fullUser = await strapi.db.query('plugin::users-permissions.user').findOne({
+          where: { id: user.id },
+          populate: ['library'],
+        });
         libraryId = fullUser?.library?.id;
       }
 
@@ -53,10 +52,7 @@ module.exports = {
     // isAvailable can only change via custom borrow/return controllers
     if (data.isAvailable !== undefined) {
       // Fetch current copy to compare
-      const existingCopy = await strapi.entityService.findOne(
-        'api::copy.copy',
-        where.id
-      );
+      const existingCopy = await strapi.db.query('api::copy.copy').findOne({ where: { id: where.id } });
 
       if (existingCopy && data.isAvailable !== existingCopy.isAvailable) {
         throw new Error(
@@ -73,7 +69,7 @@ module.exports = {
     // CATALOG INTEGRITY: a copy never changes publication (except inside a cataloguer merge)
     const publicationChange = extractRelationId(data.publication);
     if (publicationChange.changed && !isMerging()) {
-      const current = await strapi.entityService.findOne('api::copy.copy', where.id, { populate: ['publication'] });
+      const current = await strapi.db.query('api::copy.copy').findOne({ where: { id: where.id }, populate: ['publication'] });
       if ((current?.publication?.id ?? null) !== publicationChange.id) {
         throw new errors.ApplicationError('Ένα αντίτυπο δεν μπορεί να αλλάξει έντυπο.');
       }

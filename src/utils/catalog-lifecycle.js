@@ -31,7 +31,8 @@ function pick(data, existing, field) {
 async function loadExisting(uid, event) {
   const id = event.params.where?.id;
   if (!id || !event.action.startsWith('beforeUpdate')) return null;
-  return strapi.entityService.findOne(uid, id, {
+  return strapi.db.query(uid).findOne({
+    where: { id },
     populate: uid === CATALOG_UIDS.book ? ['publisher', 'magazine'] : [],
   });
 }
@@ -189,7 +190,7 @@ async function assertNotReferenced(kind, event) {
   const ids = await idsOf(kind, event);
   if (!ids.length) return;
   for (const [uid, filters] of REFERENCE_CHECKS[kind](ids)) {
-    const count = await strapi.entityService.count(uid, { filters });
+    const count = await strapi.documents(uid).count({ filters });
     if (count > 0) {
       const MESSAGES = {
         book: 'Το έντυπο έχει αντίτυπα και δεν μπορεί να διαγραφεί.',

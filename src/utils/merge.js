@@ -21,11 +21,11 @@ async function validateMerge(kind, event) {
   const sourceId = Number(event.params.where.id);
   if (change.id === sourceId) throw new errors.ApplicationError('Μια εγγραφή δεν μπορεί να συγχωνευθεί με τον εαυτό της.');
 
-  const target = await strapi.entityService.findOne(uid, change.id, { populate: ['mergeInto'] });
+  const target = await strapi.db.query(uid).findOne({ where: { id: change.id }, populate: ['mergeInto'] });
   if (!target) throw new errors.ApplicationError('Δεν βρέθηκε η εγγραφή-στόχος της συγχώνευσης.');
   if (target.mergeInto) throw new errors.ApplicationError('Η εγγραφή-στόχος συγχωνεύεται ήδη σε άλλη εγγραφή.');
 
-  const source = await strapi.entityService.findOne(uid, sourceId);
+  const source = await strapi.db.query(uid).findOne({ where: { id: sourceId } });
   const field = BIBLIONET_FIELD[kind];
   if (kind === 'book') {
     if (source[field]) throw new errors.ApplicationError('Έντυπα της Biblionet δεν συγχωνεύονται.');
@@ -39,7 +39,7 @@ async function validateMerge(kind, event) {
 }
 
 async function mergePerson(sourceId, targetId) {
-  const books = await strapi.entityService.findMany(UIDS.book, {
+  const books = await strapi.documents(UIDS.book).findMany({
     filters: { contributors: { person: { id: sourceId } } },
     populate: { contributors: { populate: ['person', 'role'] } },
   });
@@ -54,16 +54,16 @@ async function mergePerson(sourceId, targetId) {
       seen.add(key);
       contributors.push({ person, role });
     }
-    await strapi.entityService.update(UIDS.book, book.id, { data: { contributors } });
+    await strapi.documents(UIDS.book).update({ documentId: book.documentId, data: { contributors } });
   }
 }
 
 async function mergePublisher(sourceId, targetId) {
   for (const uid of [UIDS.book, 'api::magazine.magazine']) {
-    const rows = await strapi.entityService.findMany(uid, { filters: { publisher: { id: sourceId } }, fields: ['id', 'title'] });
+    const rows = await strapi.documents(uid).findMany({ filters: { publisher: { id: sourceId } }, fields: ['title'] });
     for (const row of rows) {
       try {
-        await strapi.entityService.update(uid, row.id, { data: { publisher: targetId } });
+        await strapi.documents(uid).update({ documentId: row.documentId, data: { publisher: targetId } });
       } catch (err) {
         if (!(err instanceof DuplicateRecordError)) throw err;
         const other = err.details.candidates.map((c) => c.id).join(', ');
@@ -78,14 +78,14 @@ async function mergePublisher(sourceId, targetId) {
 
 async function mergeBook(sourceId, targetId) {
   const COPY = 'api::copy.copy';
-  const targetCopies = await strapi.entityService.findMany(COPY, { filters: { publication: { id: targetId } }, populate: ['library'] });
+  const targetCopies = await strapi.documents(COPY).findMany({ filters: { publication: { id: targetId } }, populate: ['library'] });
   const used = new Map(); // libraryId -> Set(copyNumber)
   for (const c of targetCopies) {
     const lib = c.library?.id ?? null;
     if (!used.has(lib)) used.set(lib, new Set());
     used.get(lib).add(c.copyNumber);
   }
-  const sourceCopies = await strapi.entityService.findMany(COPY, {
+  const sourceCopies = await strapi.documents(COPY).findMany({
     filters: { publication: { id: sourceId } },
     populate: ['library'],
     sort: 'copyNumber',
@@ -97,19 +97,19 @@ async function mergeBook(sourceId, targetId) {
     let copyNumber = c.copyNumber;
     if (numbers.has(copyNumber)) copyNumber = Math.max(...numbers) + 1;
     numbers.add(copyNumber);
-    await strapi.entityService.update(COPY, c.id, { data: { publication: targetId, copyNumber } });
+    await strapi.documents(COPY).update({ documentId: c.documentId, data: { publication: targetId, copyNumber } });
   }
 }
 
 async function mergeMagazine(sourceId, targetId) {
-  const target = await strapi.entityService.findOne(UIDS.magazine, targetId);
-  const issues = await strapi.entityService.findMany(UIDS.book, {
+  const target = await strapi.db.query(UIDS.magazine).findOne({ where: { id: targetId } });
+  const issues = await strapi.documents(UIDS.book).findMany({
     filters: { magazine: { id: sourceId } },
-    fields: ['id', 'issueNumber', 'publicationMonthYear'],
+    fields: ['issueNumber', 'publicationMonthYear'],
   });
   for (const issue of issues) {
     try {
-      await strapi.entityService.update(UIDS.book, issue.id, { data: { magazine: targetId, title: target.title } });
+      await strapi.documents(UIDS.book).update({ documentId: issue.documentId, data: { magazine: targetId, title: target.title } });
     } catch (err) {
       if (!(err instanceof DuplicateRecordError)) throw err;
       const other = err.details.candidates.map((c) => c.id).join(', ');
@@ -134,12 +134,12 @@ async function executeMerge(kind, event) {
   // Runs inside the update's transaction (see bootstrap/entity-service.js): on any error the whole
   // update, including the mergeInto value, is rolled back and the original error reaches the admin.
   await runAsMerge(() => strapi.db.transaction(async () => {
-    const source = await strapi.entityService.findOne(uid, sourceId);
+    const source = await strapi.db.query(uid).findOne({ where: { id: sourceId } });
     await MERGERS[kind](sourceId, targetId);
-    await strapi.entityService.delete(uid, sourceId);
+    await strapi.documents(uid).delete({ documentId: source.documentId });
     if (kind !== 'book' && source[field]) {
-      const target = await strapi.entityService.findOne(uid, targetId);
-      if (!target[field]) await strapi.entityService.update(uid, targetId, { data: { [field]: source[field] } });
+      const target = await strapi.db.query(uid).findOne({ where: { id: targetId } });
+      if (!target[field]) await strapi.documents(uid).update({ documentId: target.documentId, data: { [field]: source[field] } });
     }
   }));
 }

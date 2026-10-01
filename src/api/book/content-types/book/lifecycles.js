@@ -52,7 +52,7 @@ async function applyIssueRules(event) {
 
   const id = event.params.where?.id;
   const existing = id && event.action.startsWith('beforeUpdate')
-    ? await strapi.entityService.findOne('api::book.book', id, { populate: ['magazine'] })
+    ? await strapi.db.query('api::book.book').findOne({ where: { id }, populate: ['magazine'] })
     : null;
   const change = extractRelationId(data.magazine);
   const magazineId = change.changed ? change.id : existing?.magazine?.id ?? null;

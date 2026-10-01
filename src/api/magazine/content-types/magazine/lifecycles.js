@@ -13,12 +13,12 @@ const { isMerging } = require('../../../../utils/merge-context');
 async function syncIssueTitles(event) {
   if (event.params.data?.title === undefined || isMerging() || event.state?.mergeTargetId) return;
   const magazine = event.result;
-  const issues = await strapi.entityService.findMany('api::book.book', {
+  const issues = await strapi.documents('api::book.book').findMany({
     filters: { magazine: { id: magazine.id }, title: { $ne: magazine.title } },
-    fields: ['id'],
+    fields: ['title'],
   });
   for (const issue of issues) {
-    await strapi.entityService.update('api::book.book', issue.id, { data: { title: magazine.title } });
+    await strapi.documents('api::book.book').update({ documentId: issue.documentId, data: { title: magazine.title } });
   }
 }
 

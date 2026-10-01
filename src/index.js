@@ -1,11 +1,12 @@
 'use strict';
 
 const { seedContributorRoles, seedCataloguerRole } = require('./bootstrap/seed');
-const { decorateEntityService } = require('./bootstrap/entity-service');
+const { registerCatalogMiddleware } = require('./bootstrap/catalog-middleware');
 const { syncPermissions, ensureApiTokens } = require('./bootstrap/permissions');
 
 module.exports = {
   register({ strapi }) {
+    registerCatalogMiddleware(strapi);
     const userSchema = strapi.contentType('plugin::users-permissions.user');
     if (userSchema) {
       userSchema.attributes.library = {
@@ -17,7 +18,6 @@ module.exports = {
   },
 
   async bootstrap({ strapi }) {
-    decorateEntityService(strapi);
     await seedContributorRoles(strapi);
     await seedCataloguerRole(strapi);
     await syncPermissions(strapi);
