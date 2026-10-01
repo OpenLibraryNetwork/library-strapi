@@ -1,11 +1,13 @@
 'use strict';
 
-async function getUserLibraryId(strapi, user) {
+async function getUserLibrary(strapi, user) {
   if (!user) return null;
-  const direct = user.library?.id ?? user.library;
-  if (direct) return direct;
-  const full = await strapi.entityService.findOne('plugin::users-permissions.user', user.id, { populate: ['library'] });
-  return full?.library?.id ?? null;
+  const full = await strapi.db.query('plugin::users-permissions.user').findOne({ where: { id: user.id }, populate: ['library'] });
+  return full?.library ? { id: full.library.id, documentId: full.library.documentId } : null;
 }
 
-module.exports = { getUserLibraryId };
+async function getUserLibraryId(strapi, user) {
+  return (await getUserLibrary(strapi, user))?.id ?? null;
+}
+
+module.exports = { getUserLibrary, getUserLibraryId };

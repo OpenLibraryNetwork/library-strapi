@@ -3,49 +3,19 @@
 /**
  * Global policy: is-library-owner
  *
- * Verifies that the authenticated user's library matches the
- * library of the requested Copy resource.
- *
- * Applied to:
- * - Standard REST: PUT /api/copies/:id, DELETE /api/copies/:id
- * - Custom: POST /api/copies/borrow, POST /api/copies/return
- *
- * For CREATE requests (no :id param), returns true — tenant isolation
- * is enforced by the Copy beforeCreate lifecycle hook instead.
+ * The authenticated user's library must own the requested Copy.
+ * Applied to PUT/DELETE /api/copies/:id (in Strapi 5 the :id is the documentId) and to the custom
+ * borrow/return routes, which check ownership themselves (no :id param).
+ * Create requests have no :id either — the Copy beforeCreate lifecycle forces the user's library.
  */
 
+const { getUserLibrary } = require('../utils/library');
+
 module.exports = async (policyContext, config, { strapi }) => {
-  const user = policyContext.state.user;
-
-  // Must be authenticated
-  if (!user) return false;
-
-  // Fetch user's library if not populated
-  let userLibraryId = user.library?.id || user.library;
-  if (!userLibraryId) {
-    const fullUser = await strapi.entityService.findOne(
-      'plugin::users-permissions.user',
-      user.id,
-      { populate: ['library'] }
-    );
-    userLibraryId = fullUser?.library?.id;
-  }
-
-  if (!userLibraryId) return false;
-
-  const { id } = policyContext.params;
-
-  // Create requests (no id) — lifecycle hook handles tenant isolation
-  if (!id) return true;
-
-  // For update/delete, verify ownership
-  const copy = await strapi.entityService.findOne('api::copy.copy', id, {
-    populate: ['library'],
-  });
-
-  if (!copy) return false;
-
-  const copyLibraryId = copy.library?.id || copy.library;
-
-  return copyLibraryId === userLibraryId;
+  const library = await getUserLibrary(strapi, policyContext.state.user);
+  if (!library) return false;
+  const documentId = policyContext.params?.id;
+  if (!documentId) return true;
+  const copy = await strapi.db.query('api::copy.copy').findOne({ where: { documentId }, populate: ['library'] });
+  return Boolean(copy) && copy.library?.id === library.id;
 };

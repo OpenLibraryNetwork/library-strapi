@@ -6,131 +6,44 @@
  */
 
 const { createCoreController } = require('@strapi/strapi').factories;
+const { getUserLibrary } = require('../../../utils/library');
 
-module.exports = createCoreController('api::copy.copy', ({ strapi }) => ({
+module.exports = createCoreController('api::copy.copy', ({ strapi }) => {
   /**
-   * POST /api/copies/borrow
-   * Body: { copyId: number }
-   *
-   * Atomically marks a copy as unavailable.
-   * Uses raw SQL to prevent double-borrow race conditions.
+   * Atomically flips isAvailable (borrow: true → false, return: false → true) on a copy of the user's library.
+   * The conditional UPDATE lets only one of two simultaneous requests succeed.
    */
-  async borrowCopy(ctx) {
-    const { copyId } = ctx.request.body;
+  async function flip(ctx, available) {
+    const { documentId } = ctx.request.body || {};
+    if (!documentId) return ctx.badRequest('documentId is required');
 
-    if (!copyId) {
-      return ctx.badRequest('copyId is required');
+    const library = await getUserLibrary(strapi, ctx.state.user);
+    if (!library) return ctx.forbidden('User has no assigned library');
+
+    const copy = await strapi.db.query('api::copy.copy').findOne({ where: { documentId }, populate: ['library'] });
+    if (!copy) return ctx.notFound('Copy not found');
+    if (copy.library?.id !== library.id) {
+      return ctx.forbidden(available ? 'Cannot borrow from another library' : 'Cannot return to another library');
     }
 
-    // 1. Get authenticated user's library
-    const user = ctx.state.user;
-    if (!user) {
-      return ctx.forbidden('User not authenticated');
-    }
-    let libraryId = user.library?.id || user.library;
-    if (!libraryId) {
-      const fullUser = await strapi.entityService.findOne(
-        'plugin::users-permissions.user',
-        user.id,
-        { populate: ['library'] }
-      );
-      libraryId = fullUser?.library?.id;
-    }
-    if (!libraryId) {
-      return ctx.forbidden('User has no assigned library');
-    }
+    const changed = await strapi.db.connection('copies')
+      .where({ document_id: documentId, is_available: available })
+      .update({ is_available: !available });
+    if (changed === 0) return ctx.conflict(available ? 'Copy is already borrowed' : 'Copy is not borrowed');
 
-    // 2. Verify copy exists and belongs to user's library (tenant isolation)
-    const copy = await strapi.entityService.findOne('api::copy.copy', copyId, {
-      populate: ['library'],
-    });
+    const updated = await strapi.db.query('api::copy.copy').findOne({ where: { documentId } });
+    return ctx.send({ data: updated, message: available ? 'Copy borrowed successfully' : 'Copy returned successfully' });
+  }
 
-    if (!copy) {
-      return ctx.notFound('Copy not found');
-    }
+  return {
+    /** POST /api/copies/borrow  { documentId } */
+    async borrowCopy(ctx) {
+      return flip(ctx, true);
+    },
 
-    const copyLibraryId = copy.library?.id || copy.library;
-    if (copyLibraryId !== libraryId) {
-      return ctx.forbidden('Cannot borrow from another library');
-    }
-
-    // 3. Atomic SQL update (prevents double-borrow)
-    // Uses UPDATE ... WHERE is_available = true to ensure atomicity
-    const knex = strapi.db.connection;
-    const result = await knex('copies')
-      .where({ id: copyId, is_available: true })
-      .update({ is_available: false })
-      .returning('*');
-
-    if (!result || result.length === 0) {
-      return ctx.conflict('Copy is already borrowed or does not exist');
-    }
-
-    return ctx.send({
-      data: result[0],
-      message: 'Copy borrowed successfully',
-    });
-  },
-
-  /**
-   * POST /api/copies/return
-   * Body: { copyId: number }
-   *
-   * Atomically marks a copy as available.
-   */
-  async returnCopy(ctx) {
-    const { copyId } = ctx.request.body;
-
-    if (!copyId) {
-      return ctx.badRequest('copyId is required');
-    }
-
-    // 1. Get authenticated user's library
-    const user = ctx.state.user;
-    if (!user) {
-      return ctx.forbidden('User not authenticated');
-    }
-    let libraryId = user.library?.id || user.library;
-    if (!libraryId) {
-      const fullUser = await strapi.entityService.findOne(
-        'plugin::users-permissions.user',
-        user.id,
-        { populate: ['library'] }
-      );
-      libraryId = fullUser?.library?.id;
-    }
-    if (!libraryId) {
-      return ctx.forbidden('User has no assigned library');
-    }
-
-    // 2. Verify copy exists and belongs to user's library (tenant isolation)
-    const copy = await strapi.entityService.findOne('api::copy.copy', copyId, {
-      populate: ['library'],
-    });
-
-    if (!copy) {
-      return ctx.notFound('Copy not found');
-    }
-
-    const copyLibraryId = copy.library?.id || copy.library;
-    if (copyLibraryId !== libraryId) {
-      return ctx.forbidden('Cannot return to another library');
-    }
-
-    // 3. Atomic SQL update
-    const knex = strapi.db.connection;
-    const result = await knex('copies')
-      .where({ id: copyId, is_available: false })
-      .update({ is_available: true })
-      .returning('*');
-
-    if (!result || result.length === 0) {
-      return ctx.conflict('Copy is already available or does not exist');
-    }
-
-    return ctx.send({
-      data: result[0],
-      message: 'Copy returned successfully',
-    });
-  },
-}));
+    /** POST /api/copies/return  { documentId } */
+    async returnCopy(ctx) {
+      return flip(ctx, false);
+    },
+  };
+});
