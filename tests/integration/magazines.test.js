@@ -196,10 +196,14 @@ describe('GET /api/magazines/search and /in-library', () => {
     expect(local.every((d) => d.issuesInLibrary === 0)).toBe(true); // Review Focus 5
   });
 
-  test('search: public gets no counts; short query → 400', async () => {
-    const res = await get(`/api/magazines/search?q=${encodeURIComponent('αναρχισμος')}`, null);
+  test('search: the frontend token gets no counts; public gets 403; short query → 400', async () => {
+    const { frontendTokenKey } = require('../helpers/api-token');
+    const path = `/api/magazines/search?q=${encodeURIComponent('αναρχισμος')}`;
+    const key = await frontendTokenKey(strapi);
+    const res = await http().get(path).set('Authorization', `Bearer ${key}`);
     expect(res.status).toBe(200);
     expect(res.body.data[0].issuesInLibrary).toBeUndefined();
+    expect((await get(path, null)).status).toBe(403);
     expect((await get(`/api/magazines/search?q=${encodeURIComponent('α')}`)).status).toBe(400);
   });
 

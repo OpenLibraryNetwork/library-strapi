@@ -41,28 +41,9 @@ const LIBRARIAN_ACTIONS = [
 // user.me: the JavaFX client checks a restored session with GET /api/users/me ("Online"/"Offline").
 const LIBRARIAN_PLUGIN_ACTIONS = ['plugin::users-permissions.user.me'];
 
-const PUBLIC_ACTIONS = [
-  'api::book.book.find',
-  'api::book.book.findOne',
-  'api::book.book.search',
-  'api::person.person.find',
-  'api::person.person.findOne',
-  'api::person.person.search',
-  'api::publisher.publisher.find',
-  'api::publisher.publisher.findOne',
-  'api::publisher.publisher.search',
-  'api::subject.subject.find',
-  'api::subject.subject.findOne',
-  'api::contributor-role.contributor-role.find',
-  'api::contributor-role.contributor-role.findOne',
-  'api::library.library.find',
-  'api::library.library.findOne',
-  'api::copy.copy.find',
-  'api::copy.copy.findOne',
-  'api::magazine.magazine.find',
-  'api::magazine.magazine.findOne',
-  'api::magazine.magazine.search',
-];
+// The public site reads the catalogue with the "frontend" API token (server-side). Anonymous
+// visitors get no api:: action; plugin actions (login) are not managed here and stay.
+const PUBLIC_ACTIONS = [];
 
 const READ_CATALOG = [
   'api::book.book.find',
@@ -81,6 +62,14 @@ const READ_CATALOG = [
   'api::copy.copy.findOne',
   'api::magazine.magazine.find',
   'api::magazine.magazine.findOne',
+];
+
+const FRONTEND_ACTIONS = [
+  ...READ_CATALOG,
+  'api::book.book.browse',
+  'api::person.person.search',
+  'api::publisher.publisher.search',
+  'api::magazine.magazine.search',
 ];
 
 const API_TOKENS = [
@@ -102,7 +91,7 @@ const API_TOKENS = [
       'api::subject.subject.update',
     ],
   },
-  { name: 'frontend', permissions: READ_CATALOG },
+  { name: 'frontend', permissions: FRONTEND_ACTIONS },
 ];
 
 function actionExists(strapi, action) {
@@ -153,12 +142,26 @@ async function syncPermissions(strapi) {
   if (publicRole) await syncRole(strapi, publicRole.id, PUBLIC_ACTIONS);
 }
 
+// Creates the API tokens defined here, or brings an existing one back to custom type with exactly
+// these permissions. Its key does not change. Tokens not listed in API_TOKENS are never touched.
 async function ensureApiTokens(strapi) {
   const tokenService = strapi.service('admin::api-token');
   for (const spec of API_TOKENS) {
-    if (await tokenService.exists({ name: spec.name })) continue;
-    await tokenService.create({ name: spec.name, lifespan: null, type: 'custom', permissions: spec.permissions });
+    const unknown = spec.permissions.filter((a) => !actionExists(strapi, a));
+    if (unknown.length) strapi.log.warn(`API token "${spec.name}": no such controller action: ${unknown.join(', ')}`);
+    const permissions = spec.permissions.filter((a) => !unknown.includes(a));
+
+    const existing = await tokenService.getByName(spec.name);
+    if (!existing) {
+      await tokenService.create({ name: spec.name, lifespan: null, type: 'custom', permissions });
+      continue;
+    }
+    const have = [...(existing.permissions || [])].sort();
+    const want = [...permissions].sort();
+    if (existing.type !== 'custom' || JSON.stringify(have) !== JSON.stringify(want)) {
+      await tokenService.update(existing.id, { type: 'custom', permissions });
+    }
   }
 }
 
-module.exports = { LIBRARIAN_ACTIONS, PUBLIC_ACTIONS, syncPermissions, ensureApiTokens };
+module.exports = { LIBRARIAN_ACTIONS, PUBLIC_ACTIONS, FRONTEND_ACTIONS, syncPermissions, ensureApiTokens };

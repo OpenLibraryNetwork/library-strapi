@@ -62,8 +62,12 @@ test('book search with and without type filter', async () => {
     .toEqual(['Θεραπεία λόγου']);
 });
 
-test('public can search', async () => {
-  const res = await request(strapi.server.httpServer).get(`/api/persons/search?q=${encodeURIComponent('παππα')}`);
+test('public cannot search; the frontend token can', async () => {
+  const { frontendTokenKey } = require('../helpers/api-token');
+  const path = `/api/persons/search?q=${encodeURIComponent('παππα')}`;
+  expect((await request(strapi.server.httpServer).get(path)).status).toBe(403);
+  const key = await frontendTokenKey(strapi);
+  const res = await request(strapi.server.httpServer).get(path).set('Authorization', `Bearer ${key}`);
   expect(res.status).toBe(200);
 });
 

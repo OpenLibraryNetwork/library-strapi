@@ -4,6 +4,7 @@ const docs = require('../helpers/docs');
 const request = require('supertest');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
+const { frontendTokenKey } = require('../helpers/api-token');
 
 let jwt;
 let bookId;
@@ -49,9 +50,79 @@ test.each([
   expect(res.status).toBe(403);
 });
 
-test('public can read persons but not write', async () => {
-  expect((await http().get('/api/persons')).status).toBe(200);
-  expect((await http().put(`/api/persons/${personId}`).send({ data: { name: 'x' } })).status).toBe(403);
+const READ_PATHS = [
+  '/api/books',
+  '/api/persons',
+  '/api/publishers',
+  '/api/subjects',
+  '/api/contributor-roles',
+  '/api/libraries',
+  '/api/copies',
+  '/api/magazines',
+  '/api/books/browse',
+  `/api/persons/search?q=${encodeURIComponent('δοκιμη')}`,
+  `/api/publishers/search?q=${encodeURIComponent('δοκιμη')}`,
+  `/api/magazines/search?q=${encodeURIComponent('δοκιμη')}`,
+];
+
+// /api/books/search stays a librarian endpoint (JavaFX): the site uses browse.
+test.each([...READ_PATHS, `/api/books/search?q=${encodeURIComponent('δοκιμη')}`])('public gets 403 on GET %s', async (path) => {
+  expect((await http().get(path)).status).toBe(403);
+});
+
+test('public can still log in', async () => {
+  const { user } = await createLibrarian(strapi, { libraryName: 'Σύνδεση' });
+  const res = await http().post('/api/auth/local').send({ identifier: user.email, password: 'Test1234!' });
+  expect(res.status).toBe(200);
+  expect(res.body.jwt).toBeTruthy();
+});
+
+describe('frontend token', () => {
+  let key;
+  beforeAll(async () => { key = await frontendTokenKey(strapi); });
+  const asFrontend = (req) => req.set('Authorization', `Bearer ${key}`);
+
+  test.each(READ_PATHS)('reads GET %s', async (path) => {
+    expect((await asFrontend(http().get(path))).status).toBe(200);
+  });
+
+  test.each([
+    ['post', () => '/api/books'],
+    ['put', () => `/api/persons/${personId}`],
+    ['delete', () => `/api/publishers/${publisherId}`],
+    ['post', () => '/api/copies'],
+    ['post', () => '/api/copies/borrow'],
+    ['post', () => '/api/books/local'],
+    ['post', () => '/api/books/isbn-lookup'],
+  ])('gets 403 on %s %s', async (method, path) => {
+    const res = await asFrontend(http()[method](path())).send({ data: { name: 'x', title: 'x' } });
+    expect(res.status).toBe(403);
+  });
+});
+
+test('ensureApiTokens restores the permissions of an existing token and keeps its key', async () => {
+  const { ensureApiTokens, FRONTEND_ACTIONS } = require('../../src/bootstrap/permissions');
+  const service = strapi.service('admin::api-token');
+  const key = await frontendTokenKey(strapi);
+  const token = await service.getByName('frontend');
+  await service.update(token.id, { permissions: ['api::book.book.find'] });
+
+  await ensureApiTokens(strapi);
+
+  const after = await service.getByName('frontend');
+  expect([...after.permissions].sort()).toEqual([...FRONTEND_ACTIONS].sort());
+  const res = await http().get('/api/books/browse').set('Authorization', `Bearer ${key}`);
+  expect(res.status).toBe(200);
+});
+
+test('ensureApiTokens leaves tokens it does not define alone', async () => {
+  const { ensureApiTokens } = require('../../src/bootstrap/permissions');
+  const service = strapi.service('admin::api-token');
+  await service.create({ name: 'χειροκίνητο', lifespan: null, type: 'custom', permissions: ['api::book.book.find'] });
+
+  await ensureApiTokens(strapi);
+
+  expect((await service.getByName('χειροκίνητο')).permissions).toEqual(['api::book.book.find']);
 });
 
 test('sync removes stale api permissions and keeps plugin permissions', async () => {
