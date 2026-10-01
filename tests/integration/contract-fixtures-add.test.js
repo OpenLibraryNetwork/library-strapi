@@ -38,9 +38,12 @@ const VOLATILE = new Set(['createdAt', 'updatedAt', 'publishedAt', 'quota']);
 function stripVolatile(value) {
   if (Array.isArray(value)) return value.map(stripVolatile);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).filter(([k]) => !VOLATILE.has(k)).map(([k, v]) => [k, stripVolatile(v)])
-    );
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (VOLATILE.has(k)) continue;
+      out[k] = k === 'documentId' && value.id !== undefined ? `doc-${value.id}` : stripVolatile(v);
+    }
+    return out;
   }
   return value;
 }
@@ -125,7 +128,7 @@ test('writes persons-search.json', async () => {
 test('writes contributor-roles.json', async () => {
   const res = await get('/api/contributor-roles?sort=biblionetTypeId');
   expect(res.status).toBe(200);
-  expect(res.body.data.map((r) => r.attributes.biblionetTypeId)).toEqual(['1', '2']);
+  expect(res.body.data.map((r) => r.biblionetTypeId)).toEqual(['1', '2']);
   expect(authorRoleId).toBe(res.body.data[0].id);
   writeFixture('contributor-roles.json', res.body);
 });

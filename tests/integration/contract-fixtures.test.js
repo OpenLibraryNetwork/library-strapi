@@ -28,9 +28,12 @@ const VOLATILE = new Set(['createdAt', 'updatedAt', 'publishedAt']);
 function stripVolatile(value) {
   if (Array.isArray(value)) return value.map(stripVolatile);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).filter(([k]) => !VOLATILE.has(k)).map(([k, v]) => [k, stripVolatile(v)])
-    );
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (VOLATILE.has(k)) continue;
+      out[k] = k === 'documentId' && value.id !== undefined ? `doc-${value.id}` : stripVolatile(v);
+    }
+    return out;
   }
   return value;
 }
@@ -41,7 +44,7 @@ function writeFixture(name, body) {
 }
 
 let lib;
-let bookId;
+let bookDocumentId;
 beforeAll(async () => {
   await setupStrapi();
   lib = await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Fixtures' });
@@ -71,7 +74,7 @@ beforeAll(async () => {
       contributors: [{ person: niki.id, role: author.id }, { person: panos.id, role: translator.id }],
     },
   });
-  bookId = book.id;
+  bookDocumentId = book.documentId;
   const brochure = await es.create('api::book.book', {
     data: { title: 'Αυτοοργάνωση', type: 'Μπροσούρα', yearPublished: 2019,
       contributors: [{ person: group.id, role: author.id }] },
@@ -86,15 +89,15 @@ afterAll(async () => { await cleanupStrapi(); });
 const get = (url) => request(strapi.server.httpServer).get(url).set('Authorization', `Bearer ${lib.jwt}`);
 
 test('writes book-with-contributors.json', async () => {
-  const res = await get(`/api/books/${bookId}?${JAVAFX_BOOK_POPULATE}`);
+  const res = await get(`/api/books/${bookDocumentId}?${JAVAFX_BOOK_POPULATE}`);
   expect(res.status).toBe(200);
-  expect(res.body.data.attributes.contributors).toHaveLength(2);
+  expect(res.body.data.contributors).toHaveLength(2);
   writeFixture('book-with-contributors.json', res.body);
 });
 
 test('writes books-page.json', async () => {
   const res = await get(
-    `/api/books?${JAVAFX_BOOK_POPULATE}&filters[copies][library][id][$eq]=${lib.library.id}` +
+    `/api/books?${JAVAFX_BOOK_POPULATE}&filters[copies][library][documentId][$eq]=${lib.library.documentId}` +
       '&pagination[page]=1&pagination[pageSize]=15&sort=title'
   );
   expect(res.status).toBe(200);

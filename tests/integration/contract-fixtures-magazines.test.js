@@ -28,7 +28,12 @@ const BOOK_POPULATE = 'populate[contributors][populate][0]=person&populate[contr
 function stripVolatile(value) {
   if (Array.isArray(value)) return value.map(stripVolatile);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).filter(([k]) => !VOLATILE.has(k)).map(([k, v]) => [k, stripVolatile(v)]));
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (VOLATILE.has(k)) continue;
+      out[k] = k === 'documentId' && value.id !== undefined ? `doc-${value.id}` : stripVolatile(v);
+    }
+    return out;
   }
   return value;
 }
@@ -58,7 +63,7 @@ test('writes the magazine fixtures', async () => {
   const nlgRes = await lookup('2241-5580');
   expect(nlgRes.body.source).toBe('nlg');
   writeFixture('magazine-issn-lookup-nlg.json', nlgRes.body);
-  magazineId = nlgRes.body.data.id;
+  magazineId = nlgRes.body.data.documentId;
 
   const catalog = await lookup('977224155800805');
   expect(catalog.body.source).toBe('catalog');
@@ -91,7 +96,7 @@ test('writes the magazine fixtures', async () => {
   writeFixture('issue-local-duplicate-409.json', dupIssue.body);
 
   const search = await auth(http().get(`/api/magazines/search?q=${encodeURIComponent('αναρχισμος')}`));
-  expect(search.body.data[0].attributes.issuesInLibrary).toBe(1);
+  expect(search.body.data[0].issuesInLibrary).toBe(1);
   writeFixture('magazines-search.json', search.body);
 
   const inLibrary = await auth(http().get('/api/magazines/in-library?page=1&pageSize=15'));
@@ -99,7 +104,7 @@ test('writes the magazine fixtures', async () => {
   writeFixture('magazines-in-library.json', inLibrary.body);
 
   const issues = await auth(http().get(`/api/books?${BOOK_POPULATE}&filters[type][$eq]=${encodeURIComponent('Περιοδικό')}`
-    + `&filters[magazine][id][$eq]=${magazineId}&pagination[pageSize]=100`));
+    + `&filters[magazine][documentId][$eq]=${magazineId}&pagination[pageSize]=100`));
   expect(issues.body.data).toHaveLength(3);
   writeFixture('issues-of-magazine.json', issues.body);
 });
