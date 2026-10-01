@@ -4,7 +4,7 @@ const { errors } = require('@strapi/utils');
 const { buildSearchKey, buildMatchKey } = require('./text-keys');
 const { normalizeIsbn } = require('./isbn');
 const { normalizeIssn } = require('./issn');
-const { extractRelationId, isToManyChange } = require('./relation-id');
+const { extractRelationId, extractRelationRef, isToManyChange } = require('./relation-id');
 const { isMerging } = require('./merge-context');
 
 const CATALOG_UIDS = {
@@ -135,11 +135,12 @@ async function applyCatalogKeys(kind, event) {
   }
 }
 
+// Runs on the raw Document Service payload (see bootstrap/catalog-middleware.js): targets may be documentIds.
 function assertContributorsComplete(contributors) {
   if (!Array.isArray(contributors)) return;
   for (const entry of contributors) {
-    const person = extractRelationId(entry.person);
-    const role = extractRelationId(entry.role);
+    const person = extractRelationRef(entry.person);
+    const role = extractRelationRef(entry.role);
     const isNew = entry.id === undefined;
     const missing = isNew
       ? person.id === null || role.id === null

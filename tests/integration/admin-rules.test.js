@@ -4,6 +4,7 @@ const request = require('supertest');
 const docs = require('../helpers/docs');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { adminToken } = require('../helpers/admin');
+const { createLibrarian } = require('../helpers/auth');
 
 let token;
 beforeAll(async () => {
@@ -57,4 +58,50 @@ test('admin: merge moves issues; a record in use cannot be deleted', async () =>
 test('API: a contributor without role is rejected before components are created', async () => {
   await expect(docs.create(BOOK, { data: { title: 'Συντελεστής χωρίς ρόλο', type: 'Μπροσούρα', contributors: [{ person: 1 }] } }))
     .rejects.toThrow('πρόσωπο και ρόλο');
+});
+
+test('API: contributors given by documentId (the Strapi 5 REST shape) are accepted', async () => {
+  const person = await docs.create(PERSON, { data: { name: 'Συντελεστής Με DocumentId' } });
+  const [role] = await docs.findMany('api::contributor-role.contributor-role', { sort: 'biblionetTypeId' });
+  const plain = await strapi.documents(BOOK).create({ data: { title: 'Συντελεστές με documentId', type: 'Μπροσούρα',
+    contributors: [{ person: person.documentId, role: role.documentId }] }, populate: { contributors: { populate: ['person'] } } });
+  expect(plain.contributors[0].person.documentId).toBe(person.documentId);
+  const connected = await strapi.documents(BOOK).create({ data: { title: 'Συντελεστές με connect', type: 'Μπροσούρα',
+    contributors: [{ person: { connect: [{ documentId: person.documentId }] }, role: { connect: [{ documentId: role.documentId }] } }] } });
+  expect(connected.documentId).toBeDefined();
+});
+
+describe('admin: copies', () => {
+  let library;
+  let book;
+  beforeAll(async () => {
+    await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Χρήστη' }); // a users-permissions user that may share the admin's id
+    library = await docs.create('api::library.library', { data: { name: 'Βιβλιοθήκη Admin' } });
+    book = await docs.create(BOOK, { data: { title: 'Έντυπο Αντιτύπων Admin', type: 'Μπροσούρα' } });
+  });
+
+  test('creating a copy in the admin keeps the library the admin chose', async () => {
+    const res = await cm('post', 'api::copy.copy').send({ copyNumber: 1, condition: 'NEW',
+      publication: { connect: [{ documentId: book.documentId }] }, library: { connect: [{ documentId: library.documentId }] } });
+    expect(res.status).toBe(201);
+    const saved = await strapi.db.query('api::copy.copy').findOne({ where: { documentId: res.body.data.documentId }, populate: ['library'] });
+    expect(saved.library.documentId).toBe(library.documentId);
+  });
+
+  test('saving a copy in the admin without relation changes works (Review Focus 1)', async () => {
+    const copy = await docs.create('api::copy.copy', { data: { copyNumber: 2, publication: book.id, library: library.id } });
+    const res = await cm('put', `api::copy.copy/${copy.documentId}`).send({ copyNumber: 2, condition: 'GOOD',
+      publication: { connect: [], disconnect: [] }, library: { connect: [], disconnect: [] } });
+    expect(res.status).toBe(200);
+    expect(res.body.data.condition).toBe('GOOD');
+  });
+
+  test('moving a copy to another library in the admin is refused with a message', async () => {
+    const other = await docs.create('api::library.library', { data: { name: 'Άλλη Βιβλιοθήκη Admin' } });
+    const copy = await docs.create('api::copy.copy', { data: { copyNumber: 3, publication: book.id, library: library.id } });
+    const res = await cm('put', `api::copy.copy/${copy.documentId}`).send({ copyNumber: 3,
+      library: { connect: [{ documentId: other.documentId }], disconnect: [] } });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toContain('βιβλιοθήκη');
+  });
 });

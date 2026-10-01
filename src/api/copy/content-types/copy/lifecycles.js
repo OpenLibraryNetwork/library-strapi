@@ -7,7 +7,7 @@ const { isMerging } = require('../../../../utils/merge-context');
 /**
  * Copy (Αντίτυπα) lifecycle hooks
  *
- * 1. beforeCreate: Force library from authenticated user (tenant isolation)
+ * 1. beforeCreate: Force library from the authenticated librarian (tenant isolation); the admin panel keeps its choice
  * 2. beforeUpdate: Block isAvailable changes via standard REST + prevent library reassignment
  */
 
@@ -22,10 +22,11 @@ async function assertNotBorrowed(event) {
 
 module.exports = {
   async beforeCreate(event) {
-    // TENANT ISOLATION: Force library from authenticated user
-    // Ignores whatever library ID the client sends
+    // TENANT ISOLATION: Force library from the authenticated librarian
+    // Ignores whatever library ID the client sends. Admin panel users are not librarians: their id
+    // must not be looked up among users-permissions users, and the library they chose stays.
     const ctx = strapi.requestContext.get();
-    const user = ctx?.state?.user;
+    const user = ctx?.state?.auth?.strategy?.name === 'users-permissions' ? ctx.state.user : null;
 
     if (user) {
       let libraryId = user.library?.id || user.library;
@@ -62,8 +63,13 @@ module.exports = {
     }
 
     // TENANT ISOLATION: Prevent changing library on existing copies
-    if (data.library !== undefined) {
-      throw new Error('Cannot change library assignment of an existing copy');
+    // (the admin panel sends { connect: [], disconnect: [] } on every save, which is no change)
+    const libraryChange = extractRelationId(data.library);
+    if (libraryChange.changed) {
+      const current = await strapi.db.query('api::copy.copy').findOne({ where: { id: where.id }, populate: ['library'] });
+      if ((current?.library?.id ?? null) !== libraryChange.id) {
+        throw new errors.ApplicationError('Ένα αντίτυπο δεν μπορεί να αλλάξει βιβλιοθήκη.');
+      }
     }
 
     // CATALOG INTEGRITY: a copy never changes publication (except inside a cataloguer merge)

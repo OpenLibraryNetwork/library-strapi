@@ -10,12 +10,15 @@ const COPY = 'api::copy.copy';
 let a;
 let b;
 let bookId;
+let bookDocumentId;
 
 beforeAll(async () => {
   await setupStrapi();
   a = await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Α' });
   b = await createLibrarian(strapi, { libraryName: 'Βιβλιοθήκη Β' });
-  bookId = (await docs.create('api::book.book', { data: { title: 'Κοινό έντυπο', type: 'Μπροσούρα' } })).id;
+  const book = await docs.create('api::book.book', { data: { title: 'Κοινό έντυπο', type: 'Μπροσούρα' } });
+  bookId = book.id;
+  bookDocumentId = book.documentId;
 });
 afterAll(async () => { await cleanupStrapi(); });
 
@@ -85,3 +88,27 @@ test('two simultaneous borrows of the same copy: one wins, one gets 409 (Review 
   expect(statuses).toEqual([200, 409]);
 });
 
+const libraryOf = async (documentId) =>
+  (await strapi.db.query(COPY).findOne({ where: { documentId }, populate: ['library'] })).library.documentId;
+
+test('a copy created over REST lands in the librarian\'s library (the JavaFX path)', async () => {
+  const res = await as(a, http().post('/api/copies')).send({ data: { copyNumber: 7, condition: 'NEW', publication: bookDocumentId } });
+  expect(res.status).toBe(201);
+  expect(await libraryOf(res.body.data.documentId)).toBe(a.library.documentId);
+});
+
+test('a librarian cannot create a copy in another library', async () => {
+  const res = await as(a, http().post('/api/copies'))
+    .send({ data: { copyNumber: 8, condition: 'NEW', publication: bookDocumentId, library: b.library.documentId } });
+  expect(res.status).toBe(201);
+  expect(await libraryOf(res.body.data.documentId)).toBe(a.library.documentId);
+});
+
+test('the copies of a publication in a library (contract fixture)', async () => {
+  await createCopy(a.library);
+  const res = await as(a, http().get(`/api/copies?filters[publication][documentId][$eq]=${bookDocumentId}`
+    + `&filters[library][documentId][$eq]=${a.library.documentId}&populate=publication`));
+  expect(res.status).toBe(200);
+  expect(res.body.data.length).toBeGreaterThan(0);
+  expect(res.body.data.every((c) => c.publication.documentId === bookDocumentId)).toBe(true);
+});

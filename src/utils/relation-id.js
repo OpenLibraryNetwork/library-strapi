@@ -12,22 +12,39 @@ function idOf(item) {
   return Number.isNaN(n) ? null : n;
 }
 
-function extractRelationId(value) {
+// A target given by numeric id or by documentId: the raw Document Service payload, before Strapi resolves it.
+function refOf(item) {
+  if (item === null || item === undefined) return null;
+  if (typeof item === 'object') return item.id ?? item.documentId ?? null;
+  return item === '' ? null : item;
+}
+
+function extract(value, pick) {
   if (value === undefined) return { changed: false, id: null };
   if (value === null) return { changed: true, id: null };
-  if (Array.isArray(value)) return { changed: true, id: value.length ? idOf(value[0]) : null };
+  if (Array.isArray(value)) return { changed: true, id: value.length ? pick(value[0]) : null };
   if (typeof value === 'object') {
-    if (Array.isArray(value.set)) return { changed: true, id: value.set.length ? idOf(value.set[0]) : null };
+    if (Array.isArray(value.set)) return { changed: true, id: value.set.length ? pick(value.set[0]) : null };
     if (Array.isArray(value.connect) || Array.isArray(value.disconnect)) {
       const connect = value.connect || [];
       const disconnect = value.disconnect || [];
-      if (connect.length) return { changed: true, id: idOf(connect[connect.length - 1]) };
+      if (connect.length) return { changed: true, id: pick(connect[connect.length - 1]) };
       if (disconnect.length) return { changed: true, id: null };
       return { changed: false, id: null };
     }
-    return { changed: true, id: idOf(value) };
+    return { changed: true, id: pick(value) };
   }
-  return { changed: true, id: idOf(value) };
+  return { changed: true, id: pick(value) };
+}
+
+/** For database lifecycles, where Strapi has already resolved every target to its numeric id. */
+function extractRelationId(value) {
+  return extract(value, idOf);
+}
+
+/** For the raw Document Service payload: the target is a numeric id or a documentId (string or { documentId }). */
+function extractRelationRef(value) {
+  return extract(value, refOf);
 }
 
 /**
@@ -44,4 +61,4 @@ function isToManyChange(value) {
   return true;
 }
 
-module.exports = { extractRelationId, isToManyChange };
+module.exports = { extractRelationId, extractRelationRef, isToManyChange };
