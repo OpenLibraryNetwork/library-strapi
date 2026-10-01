@@ -18,29 +18,12 @@ const nlg = require('../../src/api/magazine/services/nlg');
 const { NlgUnavailableError } = require('../../src/utils/catalog-errors');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
+const { writeFixture } = require('../helpers/fixtures');
 
-const FIXTURE_DIR = path.join(__dirname, '..', '..', '..', 'LibraryManagementSystemDesktopApp', 'src', 'test', 'resources', 'strapi-fixtures');
-const VOLATILE = new Set(['createdAt', 'updatedAt', 'publishedAt']);
 const record633300 = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'nlg', 'biblio-633300.json'), 'utf8'));
 const BOOK_POPULATE = 'populate[contributors][populate][0]=person&populate[contributors][populate][1]=role'
   + '&populate[publisher]=true&populate[subjects]=true&populate[copies][populate][0]=library';
 
-function stripVolatile(value) {
-  if (Array.isArray(value)) return value.map(stripVolatile);
-  if (value && typeof value === 'object') {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (VOLATILE.has(k)) continue;
-      out[k] = k === 'documentId' && value.id !== undefined ? `doc-${value.id}` : stripVolatile(v);
-    }
-    return out;
-  }
-  return value;
-}
-function writeFixture(name, body) {
-  fs.mkdirSync(FIXTURE_DIR, { recursive: true });
-  fs.writeFileSync(path.join(FIXTURE_DIR, name), `${JSON.stringify(stripVolatile(body), null, 2)}\n`);
-}
 
 let lib;
 let magazineId;
@@ -62,24 +45,24 @@ const lookup = (code) => auth(http().post('/api/magazines/issn-lookup')).send({ 
 test('writes the magazine fixtures', async () => {
   const nlgRes = await lookup('2241-5580');
   expect(nlgRes.body.source).toBe('nlg');
-  writeFixture('magazine-issn-lookup-nlg.json', nlgRes.body);
+  writeFixture('magazine-issn-lookup-nlg.json', nlgRes.body, 'magazine');
   magazineId = nlgRes.body.data.documentId;
 
   const catalog = await lookup('977224155800805');
   expect(catalog.body.source).toBe('catalog');
-  writeFixture('magazine-issn-lookup-catalog.json', catalog.body);
+  writeFixture('magazine-issn-lookup-catalog.json', catalog.body, 'magazine');
 
   const notFound = await lookup('0317-8471');
   expect(notFound.body.source).toBe('not-found');
-  writeFixture('magazine-issn-lookup-not-found.json', notFound.body);
+  writeFixture('magazine-issn-lookup-not-found.json', notFound.body, 'magazine');
 
   const unavailable = await lookup('1108-2402');
   expect(unavailable.body.source).toBe('unavailable');
-  writeFixture('magazine-issn-lookup-unavailable.json', unavailable.body);
+  writeFixture('magazine-issn-lookup-unavailable.json', unavailable.body, 'magazine');
 
   const dupMag = await auth(http().post('/api/magazines/local')).send({ data: { title: 'ΚΟΙΝΩΝΙΚΟΣ ΑΝΑΡΧΙΣΜΟΣ' } });
   expect(dupMag.status).toBe(409);
-  writeFixture('magazines-local-duplicate-409.json', dupMag.body);
+  writeFixture('magazines-local-duplicate-409.json', dupMag.body, 'magazine');
 
   const issue5 = await auth(http().post('/api/books/local')).send({ data: {
     type: 'Περιοδικό', magazine: magazineId, issueNumber: '5', publicationMonthYear: 'Δεκέμβριος 2016', subtitle: 'Αφιέρωμα',
@@ -93,18 +76,18 @@ test('writes the magazine fixtures', async () => {
 
   const dupIssue = await auth(http().post('/api/books/local')).send({ data: { type: 'Περιοδικό', magazine: magazineId, issueNumber: '05' } });
   expect(dupIssue.status).toBe(409);
-  writeFixture('issue-local-duplicate-409.json', dupIssue.body);
+  writeFixture('issue-local-duplicate-409.json', dupIssue.body, 'book');
 
   const search = await auth(http().get(`/api/magazines/search?q=${encodeURIComponent('αναρχισμος')}`));
   expect(search.body.data[0].issuesInLibrary).toBe(1);
-  writeFixture('magazines-search.json', search.body);
+  writeFixture('magazines-search.json', search.body, 'magazine');
 
   const inLibrary = await auth(http().get('/api/magazines/in-library?page=1&pageSize=15'));
   expect(inLibrary.body.data).toHaveLength(1);
-  writeFixture('magazines-in-library.json', inLibrary.body);
+  writeFixture('magazines-in-library.json', inLibrary.body, 'magazine');
 
   const issues = await auth(http().get(`/api/books?${BOOK_POPULATE}&filters[type][$eq]=${encodeURIComponent('Περιοδικό')}`
     + `&filters[magazine][documentId][$eq]=${magazineId}&pagination[pageSize]=100`));
   expect(issues.body.data).toHaveLength(3);
-  writeFixture('issues-of-magazine.json', issues.body);
+  writeFixture('issues-of-magazine.json', issues.body, 'book');
 });

@@ -12,36 +12,16 @@ const path = require('path');
 const request = require('supertest');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
+const { writeFixture, FIXTURE_DIR } = require('../helpers/fixtures');
 
-const FIXTURE_DIR = path.join(
-  __dirname, '..', '..', '..',
-  'LibraryManagementSystemDesktopApp', 'src', 'test', 'resources', 'strapi-fixtures'
-);
 
 // Must equal StrapiApiClient.BOOK_POPULATE in the JavaFX client.
 const JAVAFX_BOOK_POPULATE =
   'populate[contributors][populate][0]=person&populate[contributors][populate][1]=role' +
   '&populate[publisher]=true&populate[subjects]=true&populate[copies][populate][0]=library';
 
-const VOLATILE = new Set(['createdAt', 'updatedAt', 'publishedAt']);
 
-function stripVolatile(value) {
-  if (Array.isArray(value)) return value.map(stripVolatile);
-  if (value && typeof value === 'object') {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (VOLATILE.has(k)) continue;
-      out[k] = k === 'documentId' && value.id !== undefined ? `doc-${value.id}` : stripVolatile(v);
-    }
-    return out;
-  }
-  return value;
-}
 
-function writeFixture(name, body) {
-  fs.mkdirSync(FIXTURE_DIR, { recursive: true });
-  fs.writeFileSync(path.join(FIXTURE_DIR, name), `${JSON.stringify(stripVolatile(body), null, 2)}\n`);
-}
 
 let lib;
 let bookDocumentId;
@@ -92,7 +72,7 @@ test('writes book-with-contributors.json', async () => {
   const res = await get(`/api/books/${bookDocumentId}?${JAVAFX_BOOK_POPULATE}`);
   expect(res.status).toBe(200);
   expect(res.body.data.contributors).toHaveLength(2);
-  writeFixture('book-with-contributors.json', res.body);
+  writeFixture('book-with-contributors.json', res.body, 'book');
 });
 
 test('writes books-page.json', async () => {
@@ -102,19 +82,19 @@ test('writes books-page.json', async () => {
   );
   expect(res.status).toBe(200);
   expect(res.body.data).toHaveLength(2);
-  writeFixture('books-page.json', res.body);
+  writeFixture('books-page.json', res.body, 'book');
 });
 
 test('writes authors-in-library.json', async () => {
   const res = await get('/api/persons/authors');
   expect(res.status).toBe(200);
-  writeFixture('authors-in-library.json', res.body);
+  writeFixture('authors-in-library.json', res.body, 'person');
 });
 
 test('writes publishers-in-library.json', async () => {
   const res = await get('/api/publishers/in-library');
   expect(res.status).toBe(200);
-  writeFixture('publishers-in-library.json', res.body);
+  writeFixture('publishers-in-library.json', res.body, 'publisher');
 });
 
 test('all four fixtures exist', () => {

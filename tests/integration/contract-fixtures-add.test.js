@@ -20,38 +20,16 @@ jest.mock('../../src/api/book/services/biblionet', () => {
 });
 
 const docs = require('../helpers/docs');
-const fs = require('fs');
-const path = require('path');
 const request = require('supertest');
 const biblionet = require('../../src/api/book/services/biblionet');
 const quota = require('../../src/api/book/services/biblionet-quota');
 const fx = require('../fixtures/biblionet');
 const { setupStrapi, cleanupStrapi } = require('../helpers/strapi');
 const { createLibrarian } = require('../helpers/auth');
+const { writeFixture } = require('../helpers/fixtures');
 
-const FIXTURE_DIR = path.join(
-  __dirname, '..', '..', '..',
-  'LibraryManagementSystemDesktopApp', 'src', 'test', 'resources', 'strapi-fixtures'
-);
-const VOLATILE = new Set(['createdAt', 'updatedAt', 'publishedAt', 'quota']);
 
-function stripVolatile(value) {
-  if (Array.isArray(value)) return value.map(stripVolatile);
-  if (value && typeof value === 'object') {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (VOLATILE.has(k)) continue;
-      out[k] = k === 'documentId' && value.id !== undefined ? `doc-${value.id}` : stripVolatile(v);
-    }
-    return out;
-  }
-  return value;
-}
 
-function writeFixture(name, body) {
-  fs.mkdirSync(FIXTURE_DIR, { recursive: true });
-  fs.writeFileSync(path.join(FIXTURE_DIR, name), `${JSON.stringify(stripVolatile(body), null, 2)}\n`);
-}
 
 let lib;
 let groupId;
@@ -88,41 +66,41 @@ test('writes isbn-lookup-found.json', async () => {
   const res = await post('/api/books/isbn-lookup', { isbn: '978-960-211-652-4' });
   expect(res.status).toBe(200);
   expect(res.body.source).toBe('biblionet');
-  writeFixture('isbn-lookup-found.json', res.body);
+  writeFixture('isbn-lookup-found.json', res.body, 'book');
 });
 
 test('writes isbn-lookup-not-found.json', async () => {
   const res = await post('/api/books/isbn-lookup', { isbn: '9791032305690' });
   expect(res.status).toBe(200);
   expect(res.body.source).toBe('not-found');
-  writeFixture('isbn-lookup-not-found.json', res.body);
+  writeFixture('isbn-lookup-not-found.json', res.body, 'book');
 });
 
 test('writes books-local-duplicate-409.json', async () => {
   const res = await post('/api/books/local', { data: { type: 'Μπροσούρα', title: 'ΜΑΝΙΦΕΣΤΟ', yearPublished: 2019 } });
   expect(res.status).toBe(409);
   expect(res.body.candidates).toHaveLength(1);
-  writeFixture('books-local-duplicate-409.json', res.body);
+  writeFixture('books-local-duplicate-409.json', res.body, 'book');
 });
 
 test('writes persons-local-duplicate-409.json', async () => {
   const res = await post('/api/persons/local', { data: { name: 'ομαδα γειτονιας' } });
   expect(res.status).toBe(409);
   expect(res.body.candidates[0].id).toBe(groupId);
-  writeFixture('persons-local-duplicate-409.json', res.body);
+  writeFixture('persons-local-duplicate-409.json', res.body, 'person');
 });
 
 test('writes brochures-search.json', async () => {
   const res = await get(`/api/books/search?type=${encodeURIComponent('Μπροσούρα')}&q=${encodeURIComponent('μανιφεστο')}`);
   expect(res.status).toBe(200);
   expect(res.body.data).toHaveLength(1);
-  writeFixture('brochures-search.json', res.body);
+  writeFixture('brochures-search.json', res.body, 'book');
 });
 
 test('writes persons-search.json', async () => {
   const res = await get(`/api/persons/search?q=${encodeURIComponent('γειτονια')}`);
   expect(res.status).toBe(200);
-  writeFixture('persons-search.json', res.body);
+  writeFixture('persons-search.json', res.body, 'person');
 });
 
 test('writes contributor-roles.json', async () => {
@@ -130,5 +108,5 @@ test('writes contributor-roles.json', async () => {
   expect(res.status).toBe(200);
   expect(res.body.data.map((r) => r.biblionetTypeId)).toEqual(['1', '2']);
   expect(authorRoleId).toBe(res.body.data[0].id);
-  writeFixture('contributor-roles.json', res.body);
+  writeFixture('contributor-roles.json', res.body, 'role');
 });
