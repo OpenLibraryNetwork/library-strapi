@@ -35,6 +35,12 @@ function normalizeIssueNumber(text) {
   return normalize(compatible).replace(ISSUE_PREFIX, '').replace(/(^|\s)0+(\d)/g, '$1$2');
 }
 
+// Sort key of an issue: the first number of its normalized issue number ("τχ. 05" → 5, "12-13" → 12); 0 without one.
+function issueOrderOf(text) {
+  const match = normalizeIssueNumber(text).match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+
 function buildMatchKey(kind, fields) {
   switch (kind) {
     case 'person':
@@ -55,4 +61,4 @@ function buildMatchKey(kind, fields) {
   }
 }
 
-module.exports = { normalize, tokenize, buildSearchKey, buildMatchKey, normalizeIssueNumber };
+module.exports = { normalize, tokenize, buildSearchKey, buildMatchKey, normalizeIssueNumber, issueOrderOf };

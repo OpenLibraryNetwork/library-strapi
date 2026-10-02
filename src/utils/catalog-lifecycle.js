@@ -1,7 +1,7 @@
 'use strict';
 
 const { errors } = require('@strapi/utils');
-const { buildSearchKey, buildMatchKey } = require('./text-keys');
+const { buildSearchKey, buildMatchKey, issueOrderOf } = require('./text-keys');
 const { normalizeIsbn } = require('./isbn');
 const { normalizeIssn } = require('./issn');
 const { extractRelationId, extractRelationRef, isToManyChange } = require('./relation-id');
@@ -61,6 +61,7 @@ async function applyCatalogKeys(kind, event) {
 
   delete data.searchKey;
   delete data.matchKey;
+  delete data.issueOrder;
   // A merge only happens on update; on create the field would just block later merges into this record.
   if (!event.action.startsWith('beforeUpdate')) delete data.mergeInto;
 
@@ -103,6 +104,8 @@ async function applyCatalogKeys(kind, event) {
   const subtitle = pick(data, existing, 'subtitle');
   const type = pick(data, existing, 'type');
   data.searchKey = buildSearchKey(title, subtitle);
+
+  data.issueOrder = type === 'Περιοδικό' ? issueOrderOf(pick(data, existing, 'issueNumber')) : null;
 
   if (type === 'Περιοδικό') {
     const magazineChange = extractRelationId(data.magazine);

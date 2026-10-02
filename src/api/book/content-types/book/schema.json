@@ -96,6 +96,10 @@
     "publicationMonthYear": {
       "type": "string"
     },
+    "issueOrder": {
+      "type": "integer",
+      "private": true
+    },
     "publisher": {
       "type": "relation",
       "relation": "manyToOne",

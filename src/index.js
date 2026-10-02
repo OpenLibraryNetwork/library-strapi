@@ -4,6 +4,7 @@ const { seedContributorRoles, seedCataloguerRole } = require('./bootstrap/seed')
 const { registerCatalogMiddleware } = require('./bootstrap/catalog-middleware');
 const { syncPermissions, ensureApiTokens } = require('./bootstrap/permissions');
 const { closePublicRegistration } = require('./bootstrap/registration');
+const { backfillIssueOrder } = require('./bootstrap/issue-order');
 
 module.exports = {
   register({ strapi }) {
@@ -24,5 +25,6 @@ module.exports = {
     await closePublicRegistration(strapi);
     await syncPermissions(strapi);
     await ensureApiTokens(strapi);
+    await backfillIssueOrder(strapi);
   },
 };
