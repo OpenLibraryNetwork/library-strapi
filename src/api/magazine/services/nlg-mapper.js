@@ -31,7 +31,11 @@ function subfield(field, code) {
 /** "Θεσσαλονίκη :" → "Θεσσαλονίκη", "Κουρσάλ," → "Κουρσάλ" (ISBD punctuation). */
 function clean(text) {
   if (text === null || text === undefined) return null;
-  const trimmed = String(text).replace(/[\s:;,./=]+$/u, '').trim();
+  // A loop, not /[\s:;,./=]+$/: that regex is quadratic on a long run of punctuation inside the text
+  const s = String(text);
+  let end = s.length;
+  while (end > 0 && (':;,./='.includes(s[end - 1]) || /\s/u.test(s[end - 1]))) end--;
+  const trimmed = s.slice(0, end).trim();
   return trimmed || null;
 }
 

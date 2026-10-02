@@ -45,6 +45,18 @@ const LIBRARIAN_PLUGIN_ACTIONS = ['plugin::users-permissions.user.me'];
 // visitors get no api:: action; plugin actions (login) are not managed here and stay.
 const PUBLIC_ACTIONS = [];
 
+// Anonymous auth endpoints this system does not use: an administrator creates the librarians and resets
+// their passwords, there is no email provider and no social login. Removed at every start, so enabling one
+// in the admin panel does not last. Login (auth.callback) and auth.refresh stay.
+const PUBLIC_CLOSED_PLUGIN_ACTIONS = [
+  'plugin::users-permissions.auth.connect',
+  'plugin::users-permissions.auth.register',
+  'plugin::users-permissions.auth.forgotPassword',
+  'plugin::users-permissions.auth.resetPassword',
+  'plugin::users-permissions.auth.emailConfirmation',
+  'plugin::users-permissions.auth.sendEmailConfirmation',
+];
+
 const READ_CATALOG = [
   'api::book.book.find',
   'api::book.book.findOne',
@@ -137,13 +149,23 @@ async function ensurePluginActions(strapi, roleId, actions) {
   }
 }
 
+async function removePluginActions(strapi, roleId, actions) {
+  const perms = strapi.db.query('plugin::users-permissions.permission');
+  for (const p of await perms.findMany({ where: { role: roleId, action: { $in: actions } } })) {
+    await perms.delete({ where: { id: p.id } });
+  }
+}
+
 async function syncPermissions(strapi) {
   const librarian = await findOrCreateRole(strapi, 'librarian', 'Librarian', 'Βιβλιοθηκονόμος (JavaFX)');
   await syncRole(strapi, librarian.id, LIBRARIAN_ACTIONS);
   await ensurePluginActions(strapi, librarian.id, LIBRARIAN_PLUGIN_ACTIONS);
 
   const publicRole = await strapi.db.query('plugin::users-permissions.role').findOne({ where: { type: 'public' } });
-  if (publicRole) await syncRole(strapi, publicRole.id, PUBLIC_ACTIONS);
+  if (publicRole) {
+    await syncRole(strapi, publicRole.id, PUBLIC_ACTIONS);
+    await removePluginActions(strapi, publicRole.id, PUBLIC_CLOSED_PLUGIN_ACTIONS);
+  }
 }
 
 // Creates the API tokens defined here, or brings an existing one back to custom type with exactly

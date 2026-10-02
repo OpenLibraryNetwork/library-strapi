@@ -90,3 +90,18 @@ describe('records with more than one ISSN (2γ minor M-8)', () => {
     expect(mapper.mapBiblio(record, '5')).toMatchObject({ issn: '1108-2402', issns: ['1108-2402', '0317-8471'] });
   });
 });
+
+describe('ISBD punctuation cleanup', () => {
+  const record = (title) => ({ fields: [{ 245: { subfields: [{ a: title }] } }] });
+
+  test('trailing punctuation and spaces are removed', () => {
+    expect(mapper.mapBiblio(record('Κοινωνικός Αναρχισμός : /'), '1').title).toBe('Κοινωνικός Αναρχισμός');
+  });
+
+  test('a long run of punctuation inside a field is handled in linear time', () => {
+    const started = Date.now();
+    const title = mapper.mapBiblio(record(':'.repeat(50000) + 'x'), '1').title;
+    expect(title).toBe(':'.repeat(50000) + 'x');
+    expect(Date.now() - started).toBeLessThan(200);
+  });
+});

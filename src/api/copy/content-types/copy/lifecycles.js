@@ -41,7 +41,7 @@ module.exports = {
       if (libraryId) {
         event.params.data.library = libraryId;
       } else {
-        throw new Error('Cannot create copy: user has no assigned library');
+        throw new errors.ForbiddenError('Ο λογαριασμός δεν έχει βιβλιοθήκη: δεν μπορεί να καταχωρίσει αντίτυπα.');
       }
     }
   },
@@ -56,9 +56,8 @@ module.exports = {
       const existingCopy = await strapi.db.query('api::copy.copy').findOne({ where: { id: where.id } });
 
       if (existingCopy && data.isAvailable !== existingCopy.isAvailable) {
-        throw new Error(
-          'isAvailable cannot be changed directly. Use POST /api/copies/borrow or POST /api/copies/return'
-        );
+        // 400, not 500: a client error, not a server failure (use POST /api/copies/borrow or /return)
+        throw new errors.ApplicationError('Η διαθεσιμότητα αλλάζει μόνο με δανεισμό ή επιστροφή.');
       }
     }
 

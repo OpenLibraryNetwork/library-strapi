@@ -13,14 +13,14 @@ test('public registration is closed (a stranger cannot attach himself to a libra
   const lib = await strapi.documents('api::library.library').create({ data: { name: 'Στόχος Εγγραφής' } });
   const res = await http().post('/api/auth/local/register')
     .send({ username: 'stranger', email: 'stranger@test.local', password: 'Stranger123!', library: lib.id });
-  expect(res.status).toBe(400);
+  expect(res.status).toBe(403); // the public role has no register permission, and allow_register is false too
   expect(await strapi.db.query('plugin::users-permissions.user').count({ where: { username: 'stranger' } })).toBe(0);
 });
 
 test('public registration is closed even without extra fields', async () => {
   const res = await http().post('/api/auth/local/register')
     .send({ username: 'stranger2', email: 'stranger2@test.local', password: 'Stranger123!' });
-  expect(res.status).toBe(400);
+  expect(res.status).toBe(403);
   expect(await strapi.db.query('plugin::users-permissions.user').count({ where: { username: 'stranger2' } })).toBe(0);
 });
 

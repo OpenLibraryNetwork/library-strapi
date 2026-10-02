@@ -165,3 +165,43 @@ test('a mistyped action is reported in the log, not silently dropped', async () 
   expect(warn.mock.calls.flat().join('\n')).toContain('api::book.book.serch');
   warn.mockRestore();
 });
+
+describe('unused anonymous auth endpoints are closed', () => {
+  test.each([
+    ['/api/auth/forgot-password', { email: 'someone@example.org' }],
+    ['/api/auth/reset-password', { code: 'x', password: 'Test1234!', passwordConfirmation: 'Test1234!' }],
+    ['/api/auth/send-email-confirmation', { email: 'someone@example.org' }],
+  ])('public gets 403 on POST %s', async (path, body) => {
+    expect((await http().post(path).send(body)).status).toBe(403);
+  });
+
+  test('public gets 403 on the social-login connect endpoint', async () => {
+    expect((await http().get('/api/connect/github')).status).toBe(403);
+  });
+
+  test('the sync removes them again after someone enables them in the admin panel', async () => {
+    const { syncPermissions } = require('../../src/bootstrap/permissions');
+    const publicRole = await strapi.db.query('plugin::users-permissions.role').findOne({ where: { type: 'public' } });
+    const perms = strapi.db.query('plugin::users-permissions.permission');
+    await perms.create({ data: { action: 'plugin::users-permissions.auth.forgotPassword', role: publicRole.id } });
+
+    await syncPermissions(strapi);
+
+    const actions = (await perms.findMany({ where: { role: publicRole.id } })).map((p) => p.action);
+    expect(actions).not.toContain('plugin::users-permissions.auth.forgotPassword');
+    expect(actions).toContain('plugin::users-permissions.auth.callback'); // login stays
+  });
+});
+
+test('repeated wrong logins from one address are cut off with 429 (login rate limit)', async () => {
+  // Strapi keys /auth/local by path and IP only (not by account), so the logins of earlier tests count too:
+  // within 11 attempts the limit of 10 per minute must have answered 429, and only 429 after that.
+  const statuses = [];
+  for (let i = 0; i < 11; i++) {
+    statuses.push((await http().post('/api/auth/local').send({ identifier: `nobody-${i}@example.org`, password: 'wrong' })).status);
+  }
+  const first = statuses.indexOf(429);
+  expect(first).toBeGreaterThan(0);
+  expect(statuses.slice(0, first).every((s) => s === 400)).toBe(true);
+  expect(statuses.slice(first).every((s) => s === 429)).toBe(true);
+});

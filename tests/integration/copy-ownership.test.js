@@ -112,3 +112,44 @@ test('the copies of a publication in a library (contract fixture)', async () => 
   expect(res.body.data.length).toBeGreaterThan(0);
   expect(res.body.data.every((c) => c.publication.documentId === bookDocumentId)).toBe(true);
 });
+
+describe('a librarian cannot work around the ownership rules through PUT', () => {
+  test('moving an own copy into another library is refused', async () => {
+    const copy = await createCopy(a.library);
+    const res = await as(a, http().put(`/api/copies/${copy.documentId}`)).send({ data: { library: b.library.documentId } });
+    expect(res.status).toBe(400);
+    expect(await libraryOf(copy.documentId)).toBe(a.library.documentId);
+  });
+
+  test('lending a copy by setting isAvailable is refused with 400, not a server error', async () => {
+    const copy = await createCopy(a.library);
+    const res = await as(a, http().put(`/api/copies/${copy.documentId}`)).send({ data: { isAvailable: false } });
+    expect(res.status).toBe(400);
+    expect((await docs.findOne(COPY, copy.id)).isAvailable).toBe(true);
+  });
+
+  test('pointing an own copy at another publication is refused', async () => {
+    const copy = await createCopy(a.library);
+    const other = await docs.create('api::book.book', { data: { title: 'Άλλο έντυπο', type: 'Μπροσούρα' } });
+    const res = await as(a, http().put(`/api/copies/${copy.documentId}`)).send({ data: { publication: other.documentId } });
+    expect(res.status).toBe(400);
+    const stored = await strapi.db.query(COPY).findOne({ where: { documentId: copy.documentId }, populate: ['publication'] });
+    expect(stored.publication.documentId).toBe(bookDocumentId);
+  });
+});
+
+test('cannot return a copy of another library', async () => {
+  const copy = await createCopy(b.library);
+  await borrow(b, copy);
+  expect((await giveBack(a, copy)).status).toBe(403);
+  expect((await docs.findOne(COPY, copy.id)).isAvailable).toBe(false);
+});
+
+test.each([
+  ['post', () => '/api/copies'],
+  ['post', () => '/api/copies/borrow'],
+  ['post', () => '/api/books/local'],
+])('an anonymous visitor gets 403 on %s %s', async (method, path) => {
+  const res = await http()[method](path()).send({ data: { copyNumber: 1, title: 'x' } });
+  expect(res.status).toBe(403);
+});
