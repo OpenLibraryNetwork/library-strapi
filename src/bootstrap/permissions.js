@@ -64,12 +64,16 @@ const READ_CATALOG = [
   'api::magazine.magazine.findOne',
 ];
 
+// The public site: single records (with their populate) and the paginated /api/catalog lists.
+// The /search endpoints belong to the JavaFX librarians.
 const FRONTEND_ACTIONS = [
   ...READ_CATALOG,
-  'api::book.book.browse',
-  'api::person.person.search',
-  'api::publisher.publisher.search',
-  'api::magazine.magazine.search',
+  'api::catalog.catalog.publications',
+  'api::catalog.catalog.searchCounts',
+  'api::catalog.catalog.persons',
+  'api::catalog.catalog.publishers',
+  'api::catalog.catalog.magazines',
+  'api::catalog.catalog.libraries',
 ];
 
 const API_TOKENS = [

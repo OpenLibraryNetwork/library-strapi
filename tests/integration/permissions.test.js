@@ -59,14 +59,19 @@ const READ_PATHS = [
   '/api/libraries',
   '/api/copies',
   '/api/magazines',
-  '/api/books/browse',
-  `/api/persons/search?q=${encodeURIComponent('δοκιμη')}`,
-  `/api/publishers/search?q=${encodeURIComponent('δοκιμη')}`,
-  `/api/magazines/search?q=${encodeURIComponent('δοκιμη')}`,
+  '/api/catalog/publications',
+  `/api/catalog/search-counts?q=${encodeURIComponent('δοκιμη')}`,
+  `/api/catalog/persons?q=${encodeURIComponent('δοκιμη')}`,
+  `/api/catalog/publishers?q=${encodeURIComponent('δοκιμη')}`,
+  `/api/catalog/magazines?q=${encodeURIComponent('δοκιμη')}`,
+  '/api/catalog/libraries',
 ];
 
-// /api/books/search stays a librarian endpoint (JavaFX): the site uses browse.
-test.each([...READ_PATHS, `/api/books/search?q=${encodeURIComponent('δοκιμη')}`])('public gets 403 on GET %s', async (path) => {
+// The search endpoints belong to the JavaFX librarians: the site uses /api/catalog.
+const JAVAFX_SEARCH_PATHS = ['books', 'persons', 'publishers', 'magazines']
+  .map((c) => `/api/${c}/search?q=${encodeURIComponent('δοκιμη')}`);
+
+test.each([...READ_PATHS, ...JAVAFX_SEARCH_PATHS])('public gets 403 on GET %s', async (path) => {
   expect((await http().get(path)).status).toBe(403);
 });
 
@@ -84,6 +89,14 @@ describe('frontend token', () => {
 
   test.each(READ_PATHS)('reads GET %s', async (path) => {
     expect((await asFrontend(http().get(path))).status).toBe(200);
+  });
+
+  test.each(JAVAFX_SEARCH_PATHS)('gets 403 on the JavaFX search GET %s', async (path) => {
+    expect((await asFrontend(http().get(path))).status).toBe(403);
+  });
+
+  test('the removed browse endpoint is gone', async () => {
+    expect((await asFrontend(http().get('/api/books/browse'))).status).toBe(404);
   });
 
   test.each([
@@ -111,7 +124,7 @@ test('ensureApiTokens restores the permissions of an existing token and keeps it
 
   const after = await service.getByName('frontend');
   expect([...after.permissions].sort()).toEqual([...FRONTEND_ACTIONS].sort());
-  const res = await http().get('/api/books/browse').set('Authorization', `Bearer ${key}`);
+  const res = await http().get('/api/catalog/publications').set('Authorization', `Bearer ${key}`);
   expect(res.status).toBe(200);
 });
 

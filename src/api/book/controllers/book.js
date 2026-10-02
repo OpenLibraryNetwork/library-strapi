@@ -4,7 +4,6 @@
  * book controller
  * Librarians never write books through the generic CRUD actions:
  * - isbnLookup: catalog → Biblionet import
- * - browse: public catalogue listing (frontend token)
  * (search and createLocal are added in later tasks)
  */
 
@@ -17,7 +16,6 @@ const {
 } = require('../../../utils/catalog-errors');
 const { searchAction } = require('../../../utils/catalog-search');
 const { BOOK_POPULATE } = require('../../../utils/book-populate');
-const { parseBrowseQuery, BrowseQueryError } = require('../../../utils/catalog-browse');
 const { normalizeIsbn } = require('../../../utils/isbn');
 const {
   LOCAL_FIELDS,
@@ -49,33 +47,6 @@ module.exports = createCoreController('api::book.book', ({ strapi }) => ({
    */
   search: searchAction('api::book.book', { populate: BOOK_POPULATE, allowType: true }),
 
-  /**
-   * GET /api/books/browse?q=&type=&library=&available=&page=&pageSize=
-   * Public catalogue listing (frontend token): every filter optional, newest first, paginated.
-   */
-  async browse(ctx) {
-    let query;
-    try {
-      query = parseBrowseQuery(ctx.query);
-    } catch (err) {
-      if (err instanceof BrowseQueryError) return ctx.badRequest(err.message);
-      throw err;
-    }
-    const { filters, page, pageSize } = query;
-    const documents = strapi.documents('api::book.book');
-    const [results, total] = await Promise.all([
-      documents.findMany({
-        filters,
-        populate: BOOK_POPULATE,
-        sort: [{ createdAt: 'desc' }, { id: 'desc' }],
-        start: (page - 1) * pageSize,
-        limit: pageSize,
-      }),
-      documents.count({ filters }),
-    ]);
-    const pagination = { page, pageSize, pageCount: Math.ceil(total / pageSize), total };
-    return this.transformResponse(await this.sanitizeOutput(results, ctx), { pagination });
-  },
 
   /**
    * POST /api/books/isbn-lookup  { isbn }
